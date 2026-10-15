@@ -2,12 +2,12 @@
 // registrar os slash commands (/conteudo, /termos, /diagnostico) no Discord.
 // Só precisa rodar de novo se a LISTA de comandos mudar (nome, descrição).
 //
-// Como rodar (a partir da raiz do projeto, "Geada - Bot"):
+// Como rodar (a partir da raiz do projeto, "BigPurple-Bot"):
 //   deno run --allow-net --allow-env --env-file=.env scripts/registerCommands.ts
 //
 // Precisa de um arquivo .env (NÃO commitado — já está no .gitignore) com:
 //   DISCORD_TOKEN=...
-//   DISCORD_APPLICATION_ID=1534197949758963732
+//   DISCORD_APPLICATION_ID=<id do novo app>
 
 const token = Deno.env.get("DISCORD_TOKEN");
 const applicationId = Deno.env.get("DISCORD_APPLICATION_ID");

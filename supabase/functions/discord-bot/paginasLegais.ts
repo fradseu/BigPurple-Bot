@@ -9,7 +9,7 @@ function pagina(titulo: string, corpoHtml: string): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${titulo} — GEADA - Conteúdo</title>
+<title>${titulo} — Big Purple - Conteúdo</title>
 <style>
   body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #2b2d31; background: #f4f4f5; }
   h1 { font-size: 1.6rem; }
@@ -29,7 +29,7 @@ ${corpoHtml}
 export const PAGINA_TERMOS = pagina(
   "Termos de Serviço",
   `
-<h1>Termos de Serviço — GEADA - Conteúdo</h1>
+<h1>Termos de Serviço — Big Purple - Conteúdo</h1>
 <p>Este bot é uma ferramenta de organização interna do clã, usada pra criar e gerenciar
 painéis de inscrição em conteúdos (PTs) do jogo Albion Online dentro de servidores do Discord.</p>
 
@@ -59,7 +59,7 @@ servidor do Discord onde o bot está instalado.</p>
 export const PAGINA_PRIVACIDADE = pagina(
   "Política de Privacidade",
   `
-<h1>Política de Privacidade — GEADA - Conteúdo</h1>
+<h1>Política de Privacidade — Big Purple - Conteúdo</h1>
 <p>Esta página explica quais dados o bot acessa e como eles são usados.</p>
 
 <h2>Dados que o bot acessa</h2>

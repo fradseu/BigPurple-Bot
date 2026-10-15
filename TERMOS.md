@@ -1,4 +1,4 @@
-# Termos de Serviço — GEADA - Conteúdo
+# Termos de Serviço — Big Purple - Conteúdo
 
 Este bot é uma ferramenta de organização interna do clã, usada pra criar e gerenciar
 painéis de inscrição em conteúdos (PTs) do jogo Albion Online dentro de servidores do Discord.

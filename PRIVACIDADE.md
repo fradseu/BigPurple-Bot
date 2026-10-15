@@ -1,4 +1,4 @@
-# Política de Privacidade — GEADA - Conteúdo
+# Política de Privacidade — Big Purple - Conteúdo
 
 Esta página explica quais dados o bot acessa e como eles são usados.
 

@@ -9,13 +9,13 @@ export function handleTermos(): HandlerResult {
       type: 2 as const,
       style: ButtonStyle.Link,
       label: "📄 Termos de Serviço",
-      url: "https://github.com/fradseu/Geada---Bot/blob/main/TERMOS.md",
+      url: "https://github.com/fradseu/BigPurple-Bot/blob/main/TERMOS.md",
     },
     {
       type: 2 as const,
       style: ButtonStyle.Link,
       label: "🔒 Política de Privacidade",
-      url: "https://github.com/fradseu/Geada---Bot/blob/main/PRIVACIDADE.md",
+      url: "https://github.com/fradseu/BigPurple-Bot/blob/main/PRIVACIDADE.md",
     },
   );
 

@@ -1,4 +1,4 @@
-# GEADA - Conteúdo v1.2
+# Big Purple - Conteúdo v1.2
 
 Bot de Discord pra organizar PTs de conteúdo do clã (Albion Online) — reescrita
 do bot original (v1, Replit + discord.js Gateway) usando **Supabase Edge
