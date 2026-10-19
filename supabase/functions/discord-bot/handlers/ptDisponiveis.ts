@@ -73,10 +73,14 @@ async function montarCatalogoDaPT(params: {
     listarConvitesPendentesDaPT(ptMsgId),
   ]);
 
+  // MODO DE TESTE (segredo PT_MODO_TESTE=1, desligado por padrão): deixa o líder aparecer
+  // no próprio catálogo, pra dar pra testar o fluxo inteiro com uma conta só.
+  const modoTeste = Deno.env.get("PT_MODO_TESTE") === "1";
+
   const opcoes = montarCatalogo({
     candidatos,
     abertas,
-    liderId: extrairLiderIdDoCriador(pt.content),
+    liderId: modoTeste ? "" : extrairLiderIdDoCriador(pt.content),
     naPT: usuariosNaPT(linhas),
     jaConvidados,
     agoraMs: Date.now(),

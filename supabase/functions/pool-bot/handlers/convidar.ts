@@ -37,9 +37,12 @@ export async function processarPedidoConvite(pedido: PedidoConvite): Promise<Res
 
       const disp = await obterDisponibilidadePorId(item.disponibilidade_id);
       const agora = Date.now();
+      // Ninguém convida a si mesmo — exceto no MODO DE TESTE (segredo PT_MODO_TESTE=1,
+      // desligado por padrão), que permite testar o fluxo inteiro com uma conta só.
+      const modoTeste = Deno.env.get("PT_MODO_TESTE") === "1";
       const valida = disp && disp.guild_id === pedido.guild_id && disp.status === "ativa" &&
         Date.parse(disp.expira_em) > agora &&
-        disp.user_id !== pedido.lider_user_id; // ninguém convida a si mesmo
+        (modoTeste || disp.user_id !== pedido.lider_user_id);
       if (!valida) {
         resultados.push(resultado("indisponivel"));
         continue;
