@@ -140,6 +140,13 @@ export interface InteractionResponse {
 
 export const MESSAGE_FLAG_EPHEMERAL = 1 << 6;
 
+export interface OpcaoComando {
+  name: string;
+  type: number; // 1 = subcomando, 3 = texto, 6 = usuário, 7 = canal, 8 = cargo
+  value?: string; // para usuário/canal/cargo é o ID
+  options?: OpcaoComando[];
+}
+
 // Payload cru que o Discord manda pra função (subset do que a gente usa)
 export interface DiscordInteraction {
   id: string;
@@ -158,6 +165,8 @@ export interface DiscordInteraction {
   data?: {
     id?: string;
     name?: string;
+    // Subcomandos/opções de slash command: [{ name: "canal", type: 1, options: [{ name, type, value }] }]
+    options?: OpcaoComando[];
     custom_id?: string;
     component_type?: ComponentType;
     values?: string[];

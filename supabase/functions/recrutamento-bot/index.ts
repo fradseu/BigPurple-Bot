@@ -12,6 +12,7 @@ import { DiscordInteraction, InteractionType } from "./discord/types.ts";
 import { enviarFollowUp } from "./discord/rest.ts";
 import { HandlerResult } from "./handlers/context.ts";
 import { handlePainel } from "./handlers/painel.ts";
+import { handleConfig } from "./handlers/configuracao.ts";
 import {
   handleAbrirFormulario,
   handleEnviarFormulario,
@@ -31,6 +32,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 function rotear(interaction: DiscordInteraction): HandlerResult {
   if (interaction.type === InteractionType.ApplicationCommand) {
     if (interaction.data?.name === "recrutamento-painel") return handlePainel(interaction);
+    if (interaction.data?.name === "recrutamento-config") return handleConfig(interaction);
     return { immediate: reply("Comando desconhecido.", { ephemeral: true }) };
   }
 

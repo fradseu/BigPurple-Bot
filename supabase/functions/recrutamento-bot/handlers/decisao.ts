@@ -8,8 +8,9 @@ import {
   decidirCandidatura,
   obterCandidatura,
 } from "../db/candidaturas.ts";
-import { ehRecrutador, nomeExibicao } from "../discord/membro.ts";
-import { deferredUpdate, reply } from "../discord/responses.ts";
+import { obterConfig, permissoesDe } from "../db/config.ts";
+import { contextoDoMembro, nomeExibicao } from "../discord/membro.ts";
+import { deferredUpdate } from "../discord/responses.ts";
 import { editarMensagem, enviarFollowUp } from "../discord/rest.ts";
 import {
   ActionRowComponent,
@@ -18,21 +19,26 @@ import {
   DiscordInteraction,
   getInteractionUserId,
 } from "../discord/types.ts";
+import { ehRecrutador } from "../domain/permissoes.ts";
 import { HandlerResult } from "./context.ts";
 import { montarMensagemCandidatura } from "./mensagemCandidatura.ts";
 import { Dossie } from "../albion/dossie.ts";
 
-const SO_RECRUTADOR = "❌ Só recrutadores podem usar esses botões.";
+const SO_RECRUTADOR =
+  "❌ Só quem tem o cargo de **recrutador** (ou administradores) pode usar esses botões.";
+
+// Quem clicou é recrutador? Lê a config do servidor no banco — por isso roda
+// no background (depois do defer), não na resposta de 3s do Discord.
+async function clicouUmRecrutador(interaction: DiscordInteraction): Promise<boolean> {
+  const config = interaction.guild_id ? await obterConfig(interaction.guild_id) : null;
+  return ehRecrutador(contextoDoMembro(interaction), permissoesDe(config));
+}
 
 export function handleDecisao(
   interaction: DiscordInteraction,
   acao: "aprovada" | "recusada",
   candidaturaId: string,
 ): HandlerResult {
-  if (!ehRecrutador(interaction)) {
-    return { immediate: reply(SO_RECRUTADOR, { ephemeral: true }) };
-  }
-
   const mensagem = interaction.message!;
   const canalId = interaction.channel_id!;
   const applicationId = interaction.application_id;
@@ -43,6 +49,11 @@ export function handleDecisao(
   return {
     immediate: deferredUpdate(),
     background: async () => {
+      if (!(await clicouUmRecrutador(interaction))) {
+        await enviarFollowUp(applicationId, token, { content: SO_RECRUTADOR, flags: 64 });
+        return;
+      }
+
       const decidida = await decidirCandidatura(candidaturaId, acao, quemId);
       if (!decidida) {
         await enviarFollowUp(applicationId, token, {
@@ -82,10 +93,6 @@ export function handleAtualizarDossie(
   interaction: DiscordInteraction,
   candidaturaId: string,
 ): HandlerResult {
-  if (!ehRecrutador(interaction)) {
-    return { immediate: reply(SO_RECRUTADOR, { ephemeral: true }) };
-  }
-
   const mensagem = interaction.message!;
   const canalId = interaction.channel_id!;
   const applicationId = interaction.application_id;
@@ -94,6 +101,11 @@ export function handleAtualizarDossie(
   return {
     immediate: deferredUpdate(),
     background: async () => {
+      if (!(await clicouUmRecrutador(interaction))) {
+        await enviarFollowUp(applicationId, token, { content: SO_RECRUTADOR, flags: 64 });
+        return;
+      }
+
       const candidatura = await obterCandidatura(candidaturaId);
       if (!candidatura) {
         await enviarFollowUp(applicationId, token, {

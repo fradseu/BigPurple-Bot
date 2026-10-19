@@ -5,7 +5,7 @@
 //      canal dos recrutadores. (Albion + Supabase + Discord juntos passam fácil
 //      dos 3s que o Discord dá pra responder — por isso o defer.)
 import { gerarDossie } from "../albion/dossie.ts";
-import { CANAL_RECRUTADORES_ID, CARGO_RECRUTADOR_ID } from "../config.ts";
+import { obterConfig } from "../db/config.ts";
 import {
   apagarCandidatura,
   buscarPendenteDoUsuario,
@@ -81,13 +81,20 @@ export function handleEnviarFormulario(interaction: DiscordInteraction): Handler
   const username = user?.global_name ?? user?.username ?? userId;
   const applicationId = interaction.application_id;
   const token = interaction.token;
+  const guildId = interaction.guild_id;
 
   return {
     immediate: deferredReply(true), // só o candidato vê "pensando..." e a confirmação
     background: async () => {
-      if (!CANAL_RECRUTADORES_ID) {
+      const config = guildId ? await obterConfig(guildId) : null;
+      const canalRecrutadoresId = config?.canal_recrutadores_id;
+      const cargoRecrutadorId = config?.cargo_recrutador_id;
+
+      if (!guildId || !canalRecrutadoresId) {
         await editarRespostaOriginal(applicationId, token, {
-          content: "⚠️ O recrutamento ainda não foi configurado (falta o canal dos recrutadores). Avise um administrador.",
+          content:
+            "⚠️ O recrutamento ainda não foi configurado neste servidor (falta o canal dos recrutadores). " +
+            "Peça a um administrador pra usar `/recrutamento-config canal`.",
         });
         return;
       }
@@ -105,6 +112,7 @@ export function handleEnviarFormulario(interaction: DiscordInteraction): Handler
       let candidatura;
       try {
         candidatura = await criarCandidatura({
+          guild_id: guildId,
           discord_user_id: userId,
           discord_username: username,
           nickname,
@@ -126,15 +134,15 @@ export function handleEnviarFormulario(interaction: DiscordInteraction): Handler
 
       try {
         const { embed, components } = await montarMensagemCandidatura(candidatura, dossie);
-        const mensagem = await enviarMensagem(CANAL_RECRUTADORES_ID, {
-          content: CARGO_RECRUTADOR_ID
-            ? `<@&${CARGO_RECRUTADOR_ID}> nova candidatura de <@${userId}>`
+        const mensagem = await enviarMensagem(canalRecrutadoresId, {
+          content: cargoRecrutadorId
+            ? `<@&${cargoRecrutadorId}> nova candidatura de <@${userId}>`
             : `Nova candidatura de <@${userId}>`,
           embeds: [embed],
           components,
-          allowed_mentions: { roles: CARGO_RECRUTADOR_ID ? [CARGO_RECRUTADOR_ID] : [], users: [] },
+          allowed_mentions: { roles: cargoRecrutadorId ? [cargoRecrutadorId] : [], users: [] },
         });
-        await registrarMensagem(candidatura.id, CANAL_RECRUTADORES_ID, mensagem.id);
+        await registrarMensagem(candidatura.id, canalRecrutadoresId, mensagem.id);
       } catch (err) {
         // Sem mensagem no canal, a candidatura ficaria "fantasma" no banco e
         // o candidato nunca poderia tentar de novo (travaria no "já tem pendente").

@@ -1,7 +1,6 @@
 // config.ts - Configurações do bot de recrutamento (Big Purple).
-// IDs de canal/cargo NÃO são secretos — ficam aqui, como no bot de conteúdo.
-// (Pra copiar um ID: Discord > Configurações > Avançado > Modo desenvolvedor,
-//  depois botão direito no canal/cargo > Copiar ID.)
+// Canal e cargo dos recrutadores NÃO ficam mais aqui: são configurados por
+// servidor, no Discord, com /recrutamento-config (e guardados no Supabase).
 
 // Servidor do Albion: Americas/West (inclui o Sul-Americano).
 // Europa: https://gameinfo-ams.albiononline.com/api/gameinfo
@@ -14,14 +13,6 @@ export function urlKillboardJogador(id: string): string {
 
 // Nome da guilda no jogo — usado pra avisar quando o candidato já está nela.
 export const NOME_GUILDA = "Big Purple";
-
-// Canal onde o dossiê é postado pros recrutadores.
-// TESTE: #geral do "Servidor de FelipePikito". Trocar pelo canal real da guilda.
-export const CANAL_RECRUTADORES_ID = "1561757297385021452";
-
-// Cargo @Recrutador: é marcado a cada candidatura nova e é o único (junto com
-// quem tem "Gerenciar Servidor") que pode Aprovar/Recusar (PREENCHER).
-export const CARGO_RECRUTADOR_ID = "";
 
 // Sinais do dossiê
 export const DIAS_INATIVIDADE = 30; // sem nenhum evento de PvP há mais que isso = aviso

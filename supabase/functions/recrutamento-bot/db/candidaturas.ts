@@ -4,6 +4,7 @@ import { CandidaturaRow, obterClienteSupabase, StatusCandidatura } from "./clien
 const TABELA = "recrutamento_candidaturas";
 
 export interface NovaCandidatura {
+  guild_id: string;
   discord_user_id: string;
   discord_username: string;
   nickname: string;

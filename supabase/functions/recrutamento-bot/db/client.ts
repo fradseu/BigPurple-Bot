@@ -8,6 +8,7 @@ export type StatusCandidatura = "pendente" | "aprovada" | "recusada";
 // assinatura de índice implícita; com `interface` toda query vira `never`.
 export type CandidaturaRow = {
   id: string;
+  guild_id: string | null;
   discord_user_id: string;
   discord_username: string;
   nickname: string;
@@ -24,9 +25,25 @@ export type CandidaturaRow = {
   criado_em: string;
 };
 
+export type ConfigRow = {
+  guild_id: string;
+  canal_recrutadores_id: string | null;
+  cargo_recrutador_id: string | null;
+  autorizados_usuarios: string[];
+  autorizados_cargos: string[];
+  atualizado_por: string | null;
+  atualizado_em: string;
+};
+
 export interface Database {
   public: {
     Tables: {
+      recrutamento_config: {
+        Row: ConfigRow;
+        Insert: Pick<ConfigRow, "guild_id"> & Partial<ConfigRow>;
+        Update: Partial<ConfigRow>;
+        Relationships: [];
+      };
       recrutamento_candidaturas: {
         Row: CandidaturaRow;
         Insert: Omit<
