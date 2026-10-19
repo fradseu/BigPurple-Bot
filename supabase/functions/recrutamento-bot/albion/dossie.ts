@@ -48,6 +48,12 @@ export interface DossieJogador {
     pvp: number; // KillFame
     total: number; // soma de tudo
   };
+  // Detalhamento da fama (tudo vem do LifetimeStatistics da API).
+  detalhes: {
+    pveZonas: Record<string, number>; // Royal, Outlands, Avalon, Mists, Corrompidas, Hellgate
+    coletaTipos: Record<string, number>; // Fibra, Couro, Minério, Pedra, Madeira
+    coletaZonas: Record<string, number>; // Royal, Outlands, Avalon
+  };
   deathFame: number;
   razaoFama: number;
   totalKills: number; // quantos eventos de kill a API devolveu (janela recente)
@@ -177,6 +183,28 @@ export function analisarDossie(params: {
       guildaAtual,
       aliancaAtual: jogador.AllianceName || null,
       fama,
+      detalhes: {
+        pveZonas: {
+          Royal: ls?.PvE?.Royal ?? 0,
+          Outlands: ls?.PvE?.Outlands ?? 0,
+          Avalon: ls?.PvE?.Avalon ?? 0,
+          Mists: ls?.PvE?.Mists ?? 0,
+          Corrompidas: ls?.PvE?.CorruptedDungeon ?? 0,
+          Hellgate: ls?.PvE?.Hellgate ?? 0,
+        },
+        coletaTipos: {
+          Fibra: ls?.Gathering?.Fiber?.Total ?? 0,
+          Couro: ls?.Gathering?.Hide?.Total ?? 0,
+          Minério: ls?.Gathering?.Ore?.Total ?? 0,
+          Pedra: ls?.Gathering?.Rock?.Total ?? 0,
+          Madeira: ls?.Gathering?.Wood?.Total ?? 0,
+        },
+        coletaZonas: {
+          Royal: ls?.Gathering?.All?.Royal ?? 0,
+          Outlands: ls?.Gathering?.All?.Outlands ?? 0,
+          Avalon: ls?.Gathering?.All?.Avalon ?? 0,
+        },
+      },
       deathFame: jogador.DeathFame ?? 0,
       razaoFama: jogador.FameRatio ?? 0,
       totalKills: kills.length,

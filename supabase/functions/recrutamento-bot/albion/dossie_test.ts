@@ -132,6 +132,31 @@ Deno.test("analisarDossie: últimas kills/mortes vêm da mais recente pra mais a
   assertEquals(quandos, [...quandos].sort((a, b) => b - a));
 });
 
+Deno.test("analisarDossie: detalha PvE por zona e coleta por recurso/zona", () => {
+  const d = analisarDossie({
+    jogador: jogador({
+      LifetimeStatistics: {
+        PvE: { Total: 100, Royal: 60, Outlands: 10, Avalon: 20, Mists: 5, CorruptedDungeon: 5, Hellgate: 0 },
+        Gathering: {
+          Fiber: { Total: 7 },
+          Ore: { Total: 3 },
+          All: { Total: 10, Royal: 6, Outlands: 3, Avalon: 1 },
+        },
+        Crafting: { Total: 1 },
+      },
+    }),
+    kills: [],
+    mortes: [],
+    famaDeclaradaTexto: "1m",
+    agora: AGORA,
+  });
+  const det = d.jogador!.detalhes;
+  assertEquals(det.pveZonas, { Royal: 60, Outlands: 10, Avalon: 20, Mists: 5, Corrompidas: 5, Hellgate: 0 });
+  assertEquals(det.coletaTipos.Fibra, 7);
+  assertEquals(det.coletaTipos.Couro, 0); // ausente na API vira 0, não quebra
+  assertEquals(det.coletaZonas, { Royal: 6, Outlands: 3, Avalon: 1 });
+});
+
 Deno.test("analisarDossie: estatísticas ausentes não quebram (conta nova)", () => {
   const d = analisarDossie({
     jogador: jogador({ LifetimeStatistics: undefined, KillFame: 0 }),

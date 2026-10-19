@@ -25,6 +25,14 @@ function limitar(texto: string, max: number): string {
 
 const dataDiscord = (ms: number, estilo: "d" | "R" = "d") => `<t:${Math.floor(ms / 1000)}:${estilo}>`;
 
+// { Royal: 46417876, Hellgate: 0 } -> "Royal 46,42m" (esconde o que é zero)
+function listarNaoZeros(valores: Record<string, number>): string {
+  const itens = Object.entries(valores)
+    .filter(([, v]) => v > 0)
+    .map(([nome, v]) => `${nome} ${formatarFama(v)}`);
+  return itens.length > 0 ? itens.join(" · ") : "—";
+}
+
 function linhaGuilda(p: PassagemGuilda): string {
   const periodo = p.primeiraVez === p.ultimaVez || dataDiscord(p.primeiraVez) === dataDiscord(p.ultimaVez)
     ? dataDiscord(p.primeiraVez)
@@ -73,6 +81,17 @@ function camposDoJogador(d: Dossie): DiscordEmbedField[] {
         linhaTotal,
       LIMITE_FIELD,
     ),
+  });
+
+  const linhasDetalhe = [
+    `**PvE:** ${listarNaoZeros(j.detalhes.pveZonas)}`,
+    `**Coleta (recurso):** ${listarNaoZeros(j.detalhes.coletaTipos)}`,
+    `**Coleta (zona):** ${listarNaoZeros(j.detalhes.coletaZonas)}`,
+    `**Craft:** ${f.craft > 0 ? formatarFama(f.craft) : "—"}`,
+  ];
+  campos.push({
+    name: "🧭 Fama detalhada",
+    value: limitar(linhasDetalhe.join("\n"), LIMITE_FIELD),
   });
 
   campos.push({
@@ -157,7 +176,7 @@ export async function montarMensagemCandidatura(
     color: COR_PENDENTE,
     fields: campos,
     footer: {
-      text: "Fonte: API oficial do Albion (Americas). Guildas = só as vistas no killboard, não é histórico completo.",
+      text: "Fonte: API oficial do Albion (Americas). Guildas = só as vistas no killboard (não é histórico completo e a API não diz se saiu ou foi expulso).",
     },
     timestamp: new Date(dossie?.geradoEm ?? Date.parse(c.criado_em)).toISOString(),
   };

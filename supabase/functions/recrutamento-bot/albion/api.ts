@@ -19,13 +19,36 @@ export interface JogadorDetalhe {
   DeathFame: number;
   FameRatio: number;
   LifetimeStatistics?: {
-    PvE?: { Total?: number };
-    Gathering?: { All?: { Total?: number } };
+    PvE?: {
+      Total?: number;
+      Royal?: number;
+      Outlands?: number;
+      Avalon?: number;
+      Hellgate?: number;
+      CorruptedDungeon?: number;
+      Mists?: number;
+    };
+    Gathering?: {
+      Fiber?: FamaColeta;
+      Hide?: FamaColeta;
+      Ore?: FamaColeta;
+      Rock?: FamaColeta;
+      Wood?: FamaColeta;
+      All?: FamaColeta;
+    };
     Crafting?: { Total?: number };
+    CrystalLeague?: number;
     FishingFame?: number;
     FarmingFame?: number;
     Timestamp?: string;
   };
+}
+
+export interface FamaColeta {
+  Total?: number;
+  Royal?: number;
+  Outlands?: number;
+  Avalon?: number;
 }
 
 export interface ParticipanteEvento {
