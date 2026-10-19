@@ -28,8 +28,8 @@ import {
 import { enviarMensagem } from "../discord/rest.ts";
 
 export async function processarPedidoConvite(pedido: PedidoConvite): Promise<RespostaConvidar> {
-  // MODO DE TESTE (segredo PT_MODO_TESTE=1, desligado por padrão): sem limite de envio e
-  // com auto-convite permitido, pra testar o fluxo inteiro com uma conta só.
+  // MODO DE TESTE (segredo PT_MODO_TESTE=1, desligado por padrão): sem limite de envio,
+  // pra testar o fluxo inteiro com uma conta só.
   const modoTeste = Deno.env.get("PT_MODO_TESTE") === "1";
 
   let reserva: Awaited<ReturnType<typeof reservarEnvio>> | null = null;
@@ -60,8 +60,7 @@ export async function processarPedidoConvite(pedido: PedidoConvite): Promise<Res
       const disp = await obterDisponibilidadePorId(item.disponibilidade_id);
       const agora = Date.now();
       const valida = disp && disp.guild_id === pedido.guild_id && disp.status === "ativa" &&
-        Date.parse(disp.expira_em) > agora &&
-        (modoTeste || disp.user_id !== pedido.lider_user_id); // ninguém convida a si mesmo
+        Date.parse(disp.expira_em) > agora;
       if (!valida) {
         resultados.push(resultado("indisponivel"));
         continue;

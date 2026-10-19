@@ -88,13 +88,12 @@ async function carregarCatalogo(interaction: DiscordInteraction, ptMsgId: string
     listarConvitesPendentesDaPT(ptMsgId),
   ]);
 
-  // MODO DE TESTE (segredo PT_MODO_TESTE=1, desligado por padrão): deixa o líder aparecer
-  // no próprio catálogo, pra dar pra testar o fluxo inteiro com uma conta só.
-  const modoTeste = Deno.env.get("PT_MODO_TESTE") === "1";
+  // O líder NÃO é excluído só por ser líder: quem sai do catálogo é quem já está inscrito na
+  // PT (naPT, abaixo). Se o líder não está em nenhuma vaga, ele pode ser convidado como qualquer um.
   const comum = {
     candidatos,
     abertas,
-    liderId: modoTeste ? "" : liderId,
+    liderId: "",
     naPT: usuariosNaPT(linhas),
     jaConvidados,
     agoraMs: Date.now(),
