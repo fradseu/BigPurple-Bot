@@ -1,8 +1,9 @@
-// wizard.ts - Estado do formulário "Ficar disponível" (atividades, classes, tier,
-// duração) e as regras puras de validação. Cada lista do formulário é uma
+// wizard.ts - Estado do formulário "Ficar disponível" (áreas, atividades, classes,
+// tier, duração) e as regras puras de validação. Cada lista do formulário é uma
 // interação separada, então o estado acumula escolha por escolha.
 import {
-  ATIVIDADES,
+  AREAS,
+  atividadesDasAreas,
   CLASSES,
   DURACOES_MIN,
   MAX_ATIVIDADES,
@@ -11,18 +12,19 @@ import {
 } from "../config.ts";
 
 export interface EstadoWizard {
+  areas: string[];
   atividades: string[];
   classes: string[];
   tier: string | null;
   duracaoMin: number | null;
 }
 
-export type CampoWizard = "atividades" | "classes" | "tier" | "duracao";
+export type CampoWizard = "areas" | "atividades" | "classes" | "tier" | "duracao";
 
 export const DURACAO_PADRAO_MIN = 120;
 
 export function estadoInicial(): EstadoWizard {
-  return { atividades: [], classes: [], tier: null, duracaoMin: DURACAO_PADRAO_MIN };
+  return { areas: [], atividades: [], classes: [], tier: null, duracaoMin: DURACAO_PADRAO_MIN };
 }
 
 // Aceita só valores que existem nas listas (o payload vem do cliente — nunca
@@ -33,8 +35,16 @@ export function aplicarSelecao(
   valores: string[],
 ): EstadoWizard {
   switch (campo) {
+    case "areas": {
+      const validas = new Set(AREAS.map((a) => a.value));
+      const areas = unicos(valores).filter((v) => validas.has(v));
+      // Trocar de área pode tornar algumas atividades já escolhidas sem sentido: poda.
+      const permitidas = new Set(atividadesDasAreas(areas).map((a) => a.value));
+      return { ...estado, areas, atividades: estado.atividades.filter((a) => permitidas.has(a)) };
+    }
     case "atividades": {
-      const validas = new Set(ATIVIDADES.map((a) => a.value));
+      // Só as atividades das áreas escolhidas (ou todas, se ainda não escolheu área).
+      const validas = new Set(atividadesDasAreas(estado.areas).map((a) => a.value));
       return { ...estado, atividades: unicos(valores).filter((v) => validas.has(v)).slice(0, MAX_ATIVIDADES) };
     }
     case "classes": {
@@ -59,6 +69,7 @@ function unicos(valores: string[]): string[] {
 // O que ainda falta escolher (em português, pra mostrar na tela).
 export function itensFaltando(estado: EstadoWizard): string[] {
   const faltando: string[] = [];
+  if (estado.areas.length === 0) faltando.push("área");
   if (estado.atividades.length === 0) faltando.push("atividade");
   if (estado.classes.length === 0) faltando.push("classe");
   if (!estado.tier) faltando.push("tier");
@@ -75,11 +86,13 @@ export function calcularExpiracao(agoraMs: number, minutos: number): Date {
 }
 
 // Valida o JSON vindo do banco (jsonb) — se estiver corrompido, recomeça do zero.
+// A ordem importa: áreas primeiro, porque as atividades válidas dependem delas.
 export function lerEstado(bruto: unknown): EstadoWizard {
   if (!bruto || typeof bruto !== "object") return estadoInicial();
   const o = bruto as Record<string, unknown>;
   const lista = (v: unknown) => Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
   let estado = estadoInicial();
+  estado = aplicarSelecao(estado, "areas", lista(o.areas));
   estado = aplicarSelecao(estado, "atividades", lista(o.atividades));
   estado = aplicarSelecao(estado, "classes", lista(o.classes));
   if (typeof o.tier === "string") estado = aplicarSelecao(estado, "tier", [o.tier]);

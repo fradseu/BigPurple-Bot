@@ -24,7 +24,13 @@ const NOME_DO_TOPICO = "📬 Caixa de convites";
 const MAX_TENTATIVAS_CODIGO = 5;
 
 export function resumoDe(d: DisponibilidadeRow): DisponibilidadeResumo {
-  return { atividades: d.atividades, classes: d.classes, tier: d.tier, expiraEm: Date.parse(d.expira_em) };
+  return {
+    areas: d.areas,
+    atividades: d.atividades,
+    classes: d.classes,
+    tier: d.tier,
+    expiraEm: Date.parse(d.expira_em),
+  };
 }
 
 // Devolve a caixa da pessoa, criando (tópico privado + mensagem de controle) se ainda não existir.

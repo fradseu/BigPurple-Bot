@@ -26,6 +26,7 @@ export type DisponibilidadeRow = {
   guild_id: string;
   user_id: string;
   pseudonimo: string;
+  areas: string[];
   atividades: string[];
   classes: string[];
   tier: string;

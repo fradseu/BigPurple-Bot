@@ -12,8 +12,11 @@ import {
   handleAbrirFormulario,
   handleCancelarFormulario,
   handleConfirmar,
+  handleDuracao,
+  handleRevisar,
   handleSair,
   handleSelecao,
+  handleVoltar,
 } from "./handlers/disponibilidade.ts";
 import { expirarEAtualizarCaixas } from "./handlers/expiracao.ts";
 
@@ -47,6 +50,9 @@ function rotear(interaction: DiscordInteraction): HandlerResult {
     if (customId === "pool_sair") return handleSair(interaction);
     if (customId === "pool_confirmar") return handleConfirmar(interaction);
     if (customId === "pool_cancelar") return handleCancelarFormulario(interaction);
+    if (customId === "pool_revisar") return handleRevisar(interaction);
+    if (customId === "pool_voltar") return handleVoltar(interaction);
+    if (customId.startsWith("pool_dur:")) return handleDuracao(interaction, customId.slice("pool_dur:".length));
 
     if (interaction.data?.component_type === ComponentType.StringSelect && customId.startsWith("pool_sel:")) {
       const campo = customId.slice("pool_sel:".length);

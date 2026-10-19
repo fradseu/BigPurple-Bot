@@ -26,6 +26,40 @@ export const ATIVIDADES: Opcao[] = [
   { label: "Aliança Zerg versus Zerg", value: "Aliança Zerg versus Zerg" },
 ];
 
+// Áreas = os canais de ping onde as PTs são criadas (ping-pve, ping-pvp, ping-facção,
+// ping-avalon). A pessoa escolhe em quais áreas quer jogar e, em seguida, as
+// atividades (as do criador de conteúdo) daquelas áreas.
+export interface Area {
+  value: string;
+  label: string;
+  emoji: string;
+}
+
+export const AREAS: Area[] = [
+  { value: "PVE", label: "PVE", emoji: "🔵" },
+  { value: "PVP", label: "PVP", emoji: "🔴" },
+  { value: "FAC", label: "Facção", emoji: "🟣" },
+  { value: "AVALON", label: "Avalon", emoji: "🌌" },
+];
+
+// Quais atividades aparecem em cada área. Uma atividade pode estar em mais de uma
+// área (ex: Coleta na Black serve pra quem quer PVE e pra quem quer PVP).
+// AJUSTÁVEL: é só editar esta tabela — os valores são os de ATIVIDADES acima.
+export const ATIVIDADES_POR_AREA: Record<string, string[]> = {
+  PVE: ["DG Grupo", "DG Fixa", "Caçada", "Baús Azul", "Baús Dourado", "Apagas", "Spec de arma", "Coleta na Black", "Aliança DG", "Transporte para Caerleon"],
+  PVP: ["Roaming/Gank", "Aliança Zerg versus Zerg", "Coleta na Black", "Transporte para Caerleon"],
+  FAC: ["Guerra de Facção", "Aliança Guerra de Facção"],
+  AVALON: ["Coleta na Avalon", "Aliança Avalon", "Aliança DG"],
+};
+
+// Atividades que fazem sentido pras áreas escolhidas (sem repetir, na ordem de
+// ATIVIDADES). Sem nenhuma área escolhida ainda, mostra todas (pode escolher em qualquer ordem).
+export function atividadesDasAreas(areas: string[]): Opcao[] {
+  if (areas.length === 0) return ATIVIDADES;
+  const permitidas = new Set(areas.flatMap((a) => ATIVIDADES_POR_AREA[a] ?? []));
+  return ATIVIDADES.filter((a) => permitidas.has(a.value));
+}
+
 // Mesmos nomes das classes do bot de conteúdo (sem a tag de emoji).
 export const CLASSES: string[] = [
   "BADÔNICO",
@@ -64,6 +98,7 @@ export const DURACOES_MIN: Array<{ label: string; minutos: number }> = [
 ];
 
 // Limites de escolha no formulário (o Discord aceita até 25 opções por lista).
+export const MAX_AREAS = AREAS.length;
 export const MAX_ATIVIDADES = 5;
 export const MAX_CLASSES = 3;
 

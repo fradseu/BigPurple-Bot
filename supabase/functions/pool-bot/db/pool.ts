@@ -141,7 +141,7 @@ export async function cancelarAtiva(guildId: string, userId: string): Promise<bo
 export async function registrarDisponibilidade(
   dados: Pick<
     DisponibilidadeRow,
-    "guild_id" | "user_id" | "pseudonimo" | "atividades" | "classes" | "tier" | "expira_em"
+    "guild_id" | "user_id" | "pseudonimo" | "areas" | "atividades" | "classes" | "tier" | "expira_em"
   >,
 ): Promise<DisponibilidadeRow> {
   await cancelarAtiva(dados.guild_id, dados.user_id);

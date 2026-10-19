@@ -18,18 +18,20 @@ import {
   calcularExpiracao,
   CampoWizard,
   estadoInicial,
+  itensFaltando,
   lerEstado,
   wizardCompleto,
 } from "../domain/wizard.ts";
 import { atualizarControle, garantirCaixa, resumoDe } from "./caixa.ts";
 import { HandlerResult } from "./context.ts";
-import { montarFormulario } from "./formulario.ts";
+import { montarFormulario, montarRevisao } from "./formulario.ts";
 
 const SO_EM_SERVIDOR = "⚠️ Isso só funciona dentro de um servidor.";
 const POOL_NAO_CONFIGURADO =
   "⚠️ O pool ainda não foi configurado neste servidor. Peça a um administrador pra usar `/pool-painel` no canal do pool.";
 
-const CAMPOS: CampoWizard[] = ["atividades", "classes", "tier", "duracao"];
+// Campos escolhidos por LISTA (a duração é escolhida por botão, na tela de revisão).
+const CAMPOS: CampoWizard[] = ["areas", "atividades", "classes", "tier"];
 
 export function ehCampoWizard(valor: string): valor is CampoWizard {
   return (CAMPOS as string[]).includes(valor);
@@ -79,6 +81,56 @@ export function handleSelecao(interaction: DiscordInteraction, campo: CampoWizar
   };
 }
 
+// "Revisar ▶": vai pra segunda tela (resumo + duração), se estiver tudo escolhido.
+export function handleRevisar(interaction: DiscordInteraction): HandlerResult {
+  return trocarTela(interaction, (estado) =>
+    itensFaltandoNaEscolha(estado)
+      ? montarFormulario(estado, "⚠️ Ainda falta escolher algo antes de revisar.")
+      : montarRevisao(estado));
+}
+
+// "◀ Voltar": volta pra tela de escolha mantendo o que já foi marcado.
+export function handleVoltar(interaction: DiscordInteraction): HandlerResult {
+  return trocarTela(interaction, (estado) => montarFormulario(estado));
+}
+
+// Botões de duração (1h, 2h, 4h, 8h) na tela de revisão.
+export function handleDuracao(interaction: DiscordInteraction, minutos: string): HandlerResult {
+  return trocarTela(interaction, (estado) => montarRevisao(estado), (estado) => aplicarSelecao(estado, "duracao", [minutos]));
+}
+
+// Falta alguma das 4 escolhas de lista? (a duração tem valor padrão, não conta)
+function itensFaltandoNaEscolha(estado: ReturnType<typeof lerEstado>): boolean {
+  return itensFaltando(estado).some((i) => i !== "duração");
+}
+
+// Padrão das trocas de tela: confirma o clique, lê o estado, aplica uma mudança
+// opcional, grava e redesenha a mesma mensagem.
+function trocarTela(
+  interaction: DiscordInteraction,
+  desenhar: (estado: ReturnType<typeof lerEstado>) => ReturnType<typeof montarFormulario>,
+  mudar?: (estado: ReturnType<typeof lerEstado>) => ReturnType<typeof lerEstado>,
+): HandlerResult {
+  const guildId = interaction.guild_id;
+  const userId = getInteractionUserId(interaction);
+  const applicationId = interaction.application_id;
+  const token = interaction.token;
+
+  return {
+    immediate: deferredUpdate(),
+    background: async () => {
+      if (!guildId) return;
+      const linha = await obterWizard(guildId, userId);
+      let estado = lerEstado(linha?.dados);
+      if (mudar) {
+        estado = mudar(estado);
+        await salvarWizard(guildId, userId, estado as unknown as Record<string, unknown>);
+      }
+      await editarRespostaOriginal(applicationId, token, desenhar(estado));
+    },
+  };
+}
+
 export function handleConfirmar(interaction: DiscordInteraction): HandlerResult {
   const guildId = interaction.guild_id;
   const userId = getInteractionUserId(interaction);
@@ -110,6 +162,7 @@ export function handleConfirmar(interaction: DiscordInteraction): HandlerResult 
         guild_id: guildId,
         user_id: userId,
         pseudonimo: caixa.pseudonimo,
+        areas: estado.areas,
         atividades: estado.atividades,
         classes: estado.classes,
         tier: estado.tier,

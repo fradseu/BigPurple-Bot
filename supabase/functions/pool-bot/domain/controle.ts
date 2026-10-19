@@ -11,6 +11,7 @@ import {
 import { formatarPseudonimo } from "./pseudonimo.ts";
 
 export interface DisponibilidadeResumo {
+  areas: string[];
   atividades: string[];
   classes: string[];
   tier: string;
@@ -28,6 +29,7 @@ export function montarControle(
 
   const situacao = disponivel
     ? `🟢 **Disponível** até ${timestamp(disponibilidade.expiraEm, "t")} (${timestamp(disponibilidade.expiraEm, "R")})\n` +
+      `🧭 **Áreas:** ${disponibilidade.areas.join(", ") || "—"}\n` +
       `🎯 **Atividades:** ${disponibilidade.atividades.join(", ")}\n` +
       `🛡️ **Classes:** ${disponibilidade.classes.join(", ")}\n` +
       `🏷️ **Tier:** ${disponibilidade.tier}`
