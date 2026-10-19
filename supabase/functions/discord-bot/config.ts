@@ -27,9 +27,23 @@ export interface BonusConfig {
 // existente no servidor, se quiser reusar ela.
 export const NOME_CATEGORIA_SALAS_VOZ = "⸻🔹  SALA DE VOZ  🔹⸻";
 
-// IDs dos emojis customizados do servidor usados nas tags (":arcolongo:", ":curandeiro:" etc)
-// dentro de FUNCOES. Usado tanto pra montar o texto da mensagem quanto os labels
-// de botão/dropdown. Prefixo "a:" na frente do id = emoji animado.
+// Emoji PADRÃO do Discord de cada tag (":arcolongo:", ":curandeiro:" etc) usada em FUNCOES.
+// É o que aparece quando o servidor NÃO tem um emoji customizado com o mesmo nome — emoji
+// padrão funciona em qualquer servidor, sem depender de upload. Se um dia o servidor tiver
+// emojis customizados com esses nomes (curandeiro, arcolongo, defensivo, suporte, lutador),
+// eles têm prioridade (veja domain/emoji.ts).
+export const EMOJIS_UNICODE_FUNCAO: Record<string, string> = {
+  curandeiro: "💚",
+  arcolongo: "🏹",
+  defensivo: "🛡️",
+  suporte: "✨",
+  lutador: "⚔️",
+};
+
+// IDs de emojis customizados de OUTRO servidor (o antigo). NÃO servem mais pra renderizar:
+// o bot só consegue usar emoji de servidor em que está, e aqui eles apareciam como texto
+// cru (":defensivo:"). Fica só porque o /diagnostico (desativado) ainda lê esta lista.
+// Prefixo "a:" na frente do id = emoji animado.
 export const EMOJIS_FUNCAO: Record<string, string> = {
   curandeiro: "1417684586795892806",
   arcolongo: "1417684657037643916",

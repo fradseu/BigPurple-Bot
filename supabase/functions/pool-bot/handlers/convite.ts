@@ -26,6 +26,8 @@ const MENSAGENS_FALHA: Record<MotivoFalhaPreencher, string> = {
   vaga_lotada: "😕 Essa vaga já foi preenchida (ou não existe mais nessa PT). Você continua na lista pra próximos convites.",
   pt_nao_encontrada: "😕 Essa PT não existe mais. Você continua na lista pra próximos convites.",
   ja_na_pt: "ℹ️ Você já está nessa PT.",
+  vaga_a_remover_ocupada: "😕 Essa PT mudou enquanto você decidia e o convite não vale mais. Você continua na lista pra próximos convites.",
+  limite_vagas: "😕 Essa PT já está no limite de vagas. Você continua na lista pra próximos convites.",
   erro: "⚠️ Não consegui te colocar na PT agora. Tente de novo em instantes — você continua na lista.",
 };
 
@@ -97,6 +99,8 @@ export function handleResponderConvite(
         ptMensagemId: convite.pt_mensagem_id,
         userId,
         classe: convite.classe,
+        tipo: convite.tipo,
+        classeRemover: convite.classe_remover,
       });
 
       if (!resultado.ok) {

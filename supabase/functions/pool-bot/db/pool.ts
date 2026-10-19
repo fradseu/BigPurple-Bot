@@ -8,6 +8,7 @@ import {
   StatusConvite,
   WizardRow,
 } from "./client.ts";
+import { avaliarEnvio, AvaliacaoEnvio, EstadoEnvios } from "../domain/convite.ts";
 
 const db = () => obterClienteSupabase();
 
@@ -180,6 +181,8 @@ export async function criarConvite(
     | "pt_canal_id"
     | "pt_mensagem_id"
     | "classe"
+    | "tipo"
+    | "classe_remover"
     | "thread_id"
     | "expira_em"
   >,
@@ -281,4 +284,66 @@ export async function expirarVencidas(agora: Date): Promise<DisponibilidadeRow[]
     .select();
   if (error) throw new Error(`Erro ao expirar disponibilidades: ${error.message}`);
   return data ?? [];
+}
+
+// ----------------------------------------------------- anti-flood por PT
+
+
+export type ResultadoReserva =
+  | { ok: true; anterior: EstadoEnvios | null }
+  | { ok: false; bloqueio: Exclude<AvaliacaoEnvio, { permitido: true }> };
+
+// Reserva UMA tentativa de envio pra PT, respeitando intervalo e máximo. Compare-and-swap:
+// o UPDATE só vale se ninguém mexeu na linha desde a leitura, então dois cliques
+// simultâneos nunca passam os dois (o segundo recebe "espere").
+export async function reservarEnvio(guildId: string, ptMensagemId: string, agoraMs: number): Promise<ResultadoReserva> {
+  const { data: atual, error } = await db().from("pool_envios").select().eq("pt_mensagem_id", ptMensagemId).maybeSingle();
+  if (error) throw new Error(`Erro ao ler envios da PT: ${error.message}`);
+
+  const estado: EstadoEnvios | null = atual
+    ? { tentativas: atual.tentativas, ultimoEnvioMs: Date.parse(atual.ultimo_envio) }
+    : null;
+  const avaliacao = avaliarEnvio(estado, agoraMs);
+  if (!avaliacao.permitido) return { ok: false, bloqueio: avaliacao };
+
+  const agoraIso = new Date(agoraMs).toISOString();
+  if (!atual) {
+    const { error: erroInsert } = await db()
+      .from("pool_envios")
+      .insert({ pt_mensagem_id: ptMensagemId, guild_id: guildId, tentativas: 1, ultimo_envio: agoraIso });
+    if (erroInsert) {
+      // 23505: outra requisição criou a linha primeiro — essa perdeu a corrida.
+      if (erroInsert.code === "23505") {
+        return { ok: false, bloqueio: { permitido: false, motivo: "espere", esperaSeg: 1, tentativas: 1 } };
+      }
+      throw new Error(`Erro ao registrar envio: ${erroInsert.message}`);
+    }
+    return { ok: true, anterior: null };
+  }
+
+  const { data: atualizada, error: erroUpdate } = await db()
+    .from("pool_envios")
+    .update({ tentativas: atual.tentativas + 1, ultimo_envio: agoraIso })
+    .eq("pt_mensagem_id", ptMensagemId)
+    .eq("tentativas", atual.tentativas)
+    .eq("ultimo_envio", atual.ultimo_envio)
+    .select();
+  if (erroUpdate) throw new Error(`Erro ao registrar envio: ${erroUpdate.message}`);
+  if (!atualizada || atualizada.length === 0) {
+    return { ok: false, bloqueio: { permitido: false, motivo: "espere", esperaSeg: 1, tentativas: atual.tentativas } };
+  }
+  return { ok: true, anterior: estado };
+}
+
+// Se NENHUM convite chegou a ser enviado (todos indisponíveis, por exemplo), a tentativa
+// não deve ser queimada: devolve o estado de antes.
+export async function devolverEnvio(ptMensagemId: string, anterior: EstadoEnvios | null): Promise<void> {
+  if (!anterior) {
+    await db().from("pool_envios").delete().eq("pt_mensagem_id", ptMensagemId);
+    return;
+  }
+  await db()
+    .from("pool_envios")
+    .update({ tentativas: anterior.tentativas, ultimo_envio: new Date(anterior.ultimoEnvioMs).toISOString() })
+    .eq("pt_mensagem_id", ptMensagemId);
 }

@@ -18,6 +18,46 @@ export function calcularExpiracaoConvite(agoraMs: number): Date {
   return new Date(agoraMs + CONVITE_TTL_MIN * 60_000);
 }
 
+// ---- Tipos de convite
+//   preencher  : a classe do candidato tem vaga livre -> ocupa essa vaga
+//   agregar    : classe diferente -> ao aceitar NASCE uma vaga nova pra ele
+//   substituir : igual a agregar, mas apaga uma vaga LIVRE que o líder indicou
+export type TipoConvite = "preencher" | "agregar" | "substituir";
+export const TIPOS_CONVITE: TipoConvite[] = ["preencher", "agregar", "substituir"];
+
+// ---- Anti-flood por PT: um envio a cada 5 min e no máximo 5 tentativas. Cada envio
+// (em massa ou um convite avulso) conta como UMA tentativa.
+export const INTERVALO_ENVIO_SEG = 5 * 60;
+export const MAX_TENTATIVAS_POR_PT = 5;
+
+export interface EstadoEnvios {
+  tentativas: number;
+  ultimoEnvioMs: number;
+}
+
+export type AvaliacaoEnvio =
+  | { permitido: true }
+  | { permitido: false; motivo: "limite"; tentativas: number }
+  | { permitido: false; motivo: "espere"; esperaSeg: number; tentativas: number };
+
+// Pode enviar agora? Pura: recebe o histórico da PT (ou null se nunca enviou) e a hora.
+export function avaliarEnvio(estado: EstadoEnvios | null, agoraMs: number): AvaliacaoEnvio {
+  if (!estado) return { permitido: true };
+  if (estado.tentativas >= MAX_TENTATIVAS_POR_PT) {
+    return { permitido: false, motivo: "limite", tentativas: estado.tentativas };
+  }
+  const liberaEm = estado.ultimoEnvioMs + INTERVALO_ENVIO_SEG * 1000;
+  if (agoraMs < liberaEm) {
+    return {
+      permitido: false,
+      motivo: "espere",
+      esperaSeg: Math.ceil((liberaEm - agoraMs) / 1000),
+      tentativas: estado.tentativas,
+    };
+  }
+  return { permitido: true };
+}
+
 // ---- IDs dos botões: "pool_aceitar:<uuid>" / "pool_recusar:<uuid>"
 export type AcaoConvite = "aceitar" | "recusar";
 
@@ -59,6 +99,7 @@ export function montarConvite(params: {
   candidatoUserId: string;
   ptDetalhes?: string;
   classe: string;
+  tipo?: TipoConvite; // padrão: preencher
   expiraEmMs: number;
 }): {
   content: string;
@@ -68,6 +109,11 @@ export function montarConvite(params: {
 } {
   const quando = Math.floor(params.expiraEmMs / 1000);
   const detalhes = params.ptDetalhes ? sanitizarDetalhes(params.ptDetalhes) : "";
+  // Vaga que já existia vs vaga criada pra essa pessoa (agregar/substituir). Quem aceita
+  // não precisa saber se o líder apagou outra vaga livre — isso é assunto da PT.
+  const linhaVaga = (params.tipo ?? "preencher") === "preencher"
+    ? `🛡️ **Vaga para você: ${params.classe}**`
+    : `🛡️ **Vaga nova criada pra você: ${params.classe}**`;
   return {
     // A menção dentro da caixa (só ela e o bot veem) é o que gera a notificação.
     content: `<@${params.candidatoUserId}> 🎯 você recebeu um convite!`,
@@ -75,7 +121,7 @@ export function montarConvite(params: {
       title: "🎯 Convite para PT",
       // O título da PT NÃO vai no convite (pode identificar o líder/grupo): só os dados da oferta.
       description: (detalhes ? `${detalhes}\n\n` : "") +
-        `🛡️ **Vaga para você: ${params.classe}**\n\n` +
+        `${linhaVaga}\n\n` +
         `⏳ Este convite some <t:${quando}:R>.\n` +
         `Se **aceitar**, você entra na PT e seu nome aparece no painel. Se recusar, ninguém fica sabendo.`,
       color: COR_ROXO,
@@ -109,7 +155,12 @@ export interface PedidoConvite {
   pt_mensagem_id: string;
   pt_detalhes: string; // texto do painel (sem o criador) — já sanitizado aqui
   lider_user_id: string;
-  itens: Array<{ disponibilidade_id: string; classe: string }>;
+  itens: Array<{
+    disponibilidade_id: string;
+    classe: string;
+    tipo: TipoConvite;
+    classe_remover: string | null; // só no "substituir"
+  }>;
 }
 
 const SNOWFLAKE = /^\d{15,25}$/;
@@ -136,7 +187,22 @@ export function validarPedidoConvite(bruto: unknown): PedidoConvite | null {
     const i = item as Record<string, unknown>;
     const classe = texto(i.classe, 60);
     if (typeof i.disponibilidade_id !== "string" || !UUID.test(i.disponibilidade_id) || !classe) return null;
-    itens.push({ disponibilidade_id: i.disponibilidade_id, classe });
+
+    // Pedidos antigos não têm "tipo": continuam valendo como "preencher".
+    const tipo = i.tipo === undefined ? "preencher" : i.tipo;
+    if (typeof tipo !== "string" || !(TIPOS_CONVITE as string[]).includes(tipo)) return null;
+
+    // "classe_remover" existe se, e somente se, o tipo for "substituir".
+    const classeRemover = texto(i.classe_remover, 60);
+    if (tipo === "substituir" && !classeRemover) return null;
+    if (tipo !== "substituir" && i.classe_remover !== undefined && i.classe_remover !== null) return null;
+
+    itens.push({
+      disponibilidade_id: i.disponibilidade_id,
+      classe,
+      tipo: tipo as TipoConvite,
+      classe_remover: tipo === "substituir" ? classeRemover : null,
+    });
   }
 
   // Opcional: se vier lixo/tipo errado, segue sem detalhes em vez de recusar o pedido.
@@ -150,4 +216,10 @@ export type StatusItemConvite = "enviado" | "indisponivel" | "ja_convidado" | "l
 export interface ResultadoItemConvite {
   disponibilidade_id: string;
   status: StatusItemConvite;
+}
+
+// Resposta do /convidar: o resultado de cada item OU o bloqueio de envio (anti-flood).
+export interface RespostaConvidar {
+  resultados: ResultadoItemConvite[];
+  bloqueio?: { motivo: "limite" | "espere"; esperaSeg: number; tentativas: number };
 }

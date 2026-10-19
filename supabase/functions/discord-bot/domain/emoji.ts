@@ -7,7 +7,7 @@
 // REST (discord/rest.ts -> buscarEmojisDaGuilda) e monta o mapa na hora,
 // através de montarMapaEmojis().
 
-import { EMOJIS_FUNCAO } from "../config.ts";
+import { EMOJIS_UNICODE_FUNCAO } from "../config.ts";
 import { EmojiGuilda } from "../discord/rest.ts";
 import { DiscordEmoji } from "../discord/types.ts";
 
@@ -15,6 +15,8 @@ export interface EmojiResolvido {
   id: string;
   name: string;
   animated: boolean;
+  // true = emoji PADRÃO do Discord (ex: "🛡️"): `name` é o próprio caractere e não há `id`.
+  unicode?: boolean;
 }
 
 // Monta o mapa nome-da-tag -> emoji real, a partir dos emojis do servidor
@@ -38,8 +40,8 @@ interface ClasseParseada {
 }
 
 // Separa a tag (ex: ":arcolongo:") do nome da classe (ex: "BADÔNICO") e resolve
-// o emoji correspondente: 1º tenta pelo nome real no servidor, 2º cai pro ID
-// fixo cadastrado em config.ts (EMOJIS_FUNCAO).
+// o emoji correspondente: 1º tenta pelo nome real no servidor (emoji customizado),
+// 2º cai pro emoji PADRÃO do Discord cadastrado em config.ts (EMOJIS_UNICODE_FUNCAO).
 export function parseClasseComEmoji(
   classe: string,
   emojisResolvidos: Map<string, EmojiResolvido>,
@@ -52,13 +54,10 @@ export function parseClasseComEmoji(
   const real = emojisResolvidos.get(tag.toLowerCase());
   if (real) return { nome, emoji: real };
 
-  const idBruto = EMOJIS_FUNCAO[tag];
-  if (!idBruto) return { nome, emoji: null };
+  const padrao = EMOJIS_UNICODE_FUNCAO[tag.toLowerCase()];
+  if (!padrao) return { nome, emoji: null };
 
-  const animated = idBruto.startsWith("a:");
-  const id = idBruto.replace(/^a:/, "");
-
-  return { nome, emoji: { id, name: tag, animated } };
+  return { nome, emoji: { id: "", name: padrao, animated: false, unicode: true } };
 }
 
 // Texto pronto pra ir DENTRO do conteúdo da mensagem (sintaxe <:tag:id> do
@@ -69,6 +68,7 @@ export function formatarClasseParaMensagem(
 ): string {
   const { nome, emoji } = parseClasseComEmoji(classe, emojisResolvidos);
   if (!emoji) return nome;
+  if (emoji.unicode) return `${emoji.name} ${nome}`; // emoji padrão: o próprio caractere
   return `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}> ${nome}`;
 }
 
@@ -76,6 +76,7 @@ export function formatarClasseParaMensagem(
 // (campo `emoji: {id, name, animated}` separado do label, não dentro do texto).
 export function emojiParaComponente(emoji: EmojiResolvido | null): DiscordEmoji | undefined {
   if (!emoji) return undefined;
+  if (emoji.unicode) return { name: emoji.name }; // emoji padrão não tem id
   return { id: emoji.id, name: emoji.name, animated: emoji.animated };
 }
 
@@ -105,8 +106,8 @@ export function compararClasses(a: string, b: string): number {
   return nomeA.localeCompare(nomeB, "pt-BR");
 }
 
-// Rede de segurança: varre um texto inteiro e troca QUALQUER tag ":algo:"
-// cadastrada em EMOJIS_FUNCAO pelo código de emoji real "<:algo:id>". Roda
+// Rede de segurança: varre um texto inteiro e troca QUALQUER tag ":algo:" conhecida
+// (EMOJIS_UNICODE_FUNCAO) pelo emoji padrão do Discord. Roda
 // bem antes de qualquer envio/edição de mensagem, garantindo que nenhuma tag
 // crua sobre no painel, venha o texto de onde vier.
 //
@@ -119,10 +120,7 @@ export function aplicarEmojisNoTexto(texto: string): string {
   return texto.replace(/<a?:\w+:\d+>|:(\w+):/g, (match, tagCrua) => {
     if (tagCrua === undefined) return match; // já é <a?:tag:id> válido, não mexe
 
-    const idBruto = EMOJIS_FUNCAO[tagCrua];
-    if (!idBruto) return match;
-    const animated = idBruto.startsWith("a:");
-    const id = idBruto.replace(/^a:/, "");
-    return `<${animated ? "a" : ""}:${tagCrua}:${id}>`;
+    // Sobrou uma tag crua (":defensivo:"): troca pelo emoji padrão do Discord.
+    return EMOJIS_UNICODE_FUNCAO[tagCrua.toLowerCase()] ?? match;
   });
 }

@@ -1,5 +1,6 @@
 import { assert, assertEquals } from "@std/assert";
 import {
+  avaliarEnvio,
   calcularExpiracaoConvite,
   CONVITE_TTL_MIN,
   idBotaoConvite,
@@ -141,4 +142,101 @@ Deno.test("validarPedidoConvite: recusa formatos inválidos", () => {
 Deno.test("validarPedidoConvite: limita a quantidade de itens por pedido", () => {
   const itens = Array.from({ length: MAX_CONVITES_POR_PEDIDO + 1 }, () => ({ disponibilidade_id: UUID, classe: "TANK" }));
   assertEquals(validarPedidoConvite({ ...pedidoValido(), itens }), null);
+});
+
+// ---------------------------------------------------------------- tipos de convite
+
+Deno.test("pedido sem 'tipo' (bot de conteúdo antigo) vale como 'preencher'", () => {
+  const r = validarPedidoConvite(pedidoValido());
+  assertEquals(r?.itens[0].tipo, "preencher");
+  assertEquals(r?.itens[0].classe_remover, null);
+});
+
+Deno.test("agregar: aceita sem classe_remover", () => {
+  const r = validarPedidoConvite({
+    ...pedidoValido(),
+    itens: [{ disponibilidade_id: UUID, classe: "FURA-BRUMA", tipo: "agregar" }],
+  });
+  assertEquals(r?.itens[0].tipo, "agregar");
+  assertEquals(r?.itens[0].classe_remover, null);
+});
+
+Deno.test("substituir: EXIGE classe_remover", () => {
+  const sem = validarPedidoConvite({
+    ...pedidoValido(),
+    itens: [{ disponibilidade_id: UUID, classe: "FURA-BRUMA", tipo: "substituir" }],
+  });
+  assertEquals(sem, null);
+  const com = validarPedidoConvite({
+    ...pedidoValido(),
+    itens: [{ disponibilidade_id: UUID, classe: "FURA-BRUMA", tipo: "substituir", classe_remover: "BADÔNICO" }],
+  });
+  assertEquals(com?.itens[0].classe_remover, "BADÔNICO");
+});
+
+Deno.test("classe_remover só faz sentido no 'substituir' (nos outros é pedido inválido)", () => {
+  for (const tipo of ["preencher", "agregar"]) {
+    const r = validarPedidoConvite({
+      ...pedidoValido(),
+      itens: [{ disponibilidade_id: UUID, classe: "TANK", tipo, classe_remover: "DPS" }],
+    });
+    assertEquals(r, null, `tipo ${tipo} não pode ter classe_remover`);
+  }
+});
+
+Deno.test("tipo desconhecido é recusado", () => {
+  assertEquals(
+    validarPedidoConvite({ ...pedidoValido(), itens: [{ disponibilidade_id: UUID, classe: "TANK", tipo: "trocar" }] }),
+    null,
+  );
+});
+
+Deno.test("convite de vaga NOVA avisa que a vaga foi criada, sem revelar que outra foi apagada", () => {
+  const base = {
+    conviteId: UUID, candidatoUserId: "111111111111111111", ptDetalhes: DETALHES_DA_PT,
+    classe: "FURA-BRUMA", expiraEmMs: 1_800_000_000_000,
+  };
+  const velho = montarConvite({ ...base, tipo: "preencher" }).embeds[0].description!;
+  const agregar = montarConvite({ ...base, tipo: "agregar" }).embeds[0].description!;
+  const substituir = montarConvite({ ...base, tipo: "substituir" }).embeds[0].description!;
+  assert(velho.includes("Vaga para você: FURA-BRUMA"));
+  assert(agregar.includes("Vaga nova criada pra você: FURA-BRUMA"));
+  assertEquals(agregar, substituir); // o convidado não vê a diferença
+  assert(!/apag|remov|substitu/i.test(substituir));
+});
+
+// ---------------------------------------------------------------- anti-flood
+
+const T0 = 1_800_000_000_000;
+const MIN = 60_000;
+
+Deno.test("anti-flood: a primeira vez sempre pode enviar", () => {
+  assertEquals(avaliarEnvio(null, T0), { permitido: true });
+});
+
+Deno.test("anti-flood: antes de 5 minutos tem que esperar, e diz quanto falta", () => {
+  const r = avaliarEnvio({ tentativas: 1, ultimoEnvioMs: T0 }, T0 + 2 * MIN);
+  assertEquals(r, { permitido: false, motivo: "espere", esperaSeg: 180, tentativas: 1 });
+});
+
+Deno.test("anti-flood: com exatamente 5 minutos já pode", () => {
+  assertEquals(avaliarEnvio({ tentativas: 1, ultimoEnvioMs: T0 }, T0 + 5 * MIN), { permitido: true });
+});
+
+Deno.test("anti-flood: arredonda a espera pra cima (nunca diz 0 segundos faltando)", () => {
+  const r = avaliarEnvio({ tentativas: 2, ultimoEnvioMs: T0 }, T0 + 5 * MIN - 400);
+  assert(!r.permitido && r.motivo === "espere" && r.esperaSeg === 1);
+});
+
+Deno.test("anti-flood: na 6ª tentativa bloqueia de vez ('na unha')", () => {
+  assertEquals(
+    avaliarEnvio({ tentativas: 5, ultimoEnvioMs: T0 }, T0 + 60 * MIN),
+    { permitido: false, motivo: "limite", tentativas: 5 },
+  );
+});
+
+Deno.test("anti-flood: a 5ª tentativa ainda passa; o limite pesa mais que o intervalo", () => {
+  assertEquals(avaliarEnvio({ tentativas: 4, ultimoEnvioMs: T0 }, T0 + 6 * MIN), { permitido: true });
+  const r = avaliarEnvio({ tentativas: 5, ultimoEnvioMs: T0 }, T0 + 1 * MIN);
+  assert(!r.permitido && r.motivo === "limite"); // não é "espere": esperar não resolve
 });

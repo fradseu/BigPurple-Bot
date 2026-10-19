@@ -24,11 +24,20 @@ export type ConviteRow = {
   pt_canal_id: string;
   pt_mensagem_id: string;
   classe: string;
+  tipo: "preencher" | "agregar" | "substituir";
+  classe_remover: string | null; // só no "substituir"
   thread_id: string | null;
   mensagem_id: string | null;
   status: StatusConvite;
   expira_em: string;
   criado_em: string;
+};
+
+export type EnvioRow = {
+  pt_mensagem_id: string;
+  guild_id: string;
+  tentativas: number;
+  ultimo_envio: string;
 };
 
 export type CaixaRow = {
@@ -85,9 +94,15 @@ export interface Database {
       pool_convites: {
         Row: ConviteRow;
         Insert:
-          & Omit<ConviteRow, "id" | "status" | "criado_em" | "thread_id" | "mensagem_id">
+          & Omit<ConviteRow, "id" | "status" | "criado_em" | "thread_id" | "mensagem_id" | "tipo" | "classe_remover">
           & Partial<ConviteRow>;
         Update: Partial<ConviteRow>;
+        Relationships: [];
+      };
+      pool_envios: {
+        Row: EnvioRow;
+        Insert: Pick<EnvioRow, "pt_mensagem_id" | "guild_id"> & Partial<EnvioRow>;
+        Update: Partial<EnvioRow>;
         Relationships: [];
       };
       pool_wizard: {

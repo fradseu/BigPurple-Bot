@@ -1,5 +1,10 @@
 import { assert, assertEquals } from "@std/assert";
-import { preencherVagaComJogador } from "./preenchimento.ts";
+import {
+  agregarVagaComJogador,
+  MAX_VAGAS_PT,
+  preencherVagaComJogador,
+  substituirVagaComJogador,
+} from "./preenchimento.ts";
 
 const LINHAS = [
   "📊 **Vagas:** (1/4)",
@@ -57,3 +62,68 @@ Deno.test("não altera o array original (função pura)", () => {
   preencherVagaComJogador(LINHAS, "111111111111111111", "BADÔNICO");
   assertEquals(LINHAS, copia);
 });
+
+// ---------------------------------------------------------------- agregar / substituir
+
+Deno.test("agregar: cria uma vaga NOVA já ocupada, sem mexer nas outras, e atualiza o resumo", () => {
+  const r = agregarVagaComJogador(LINHAS, "111111111111111111", "<:x:9> FURA-BRUMA");
+  assert(r.ok);
+  assert(r.linhas.includes("(1/1) <:x:9> FURA-BRUMA <@111111111111111111> "));
+  assertEquals(r.linhas[0], "📊 **Vagas:** (2/5)"); // era 1/4, ganhou 1 vaga e 1 ocupante
+  assertEquals(r.linhas.filter((l) => l.startsWith("(0/1)")).length, 3); // as livres continuam livres
+});
+
+Deno.test("agregar: não duplica quem já está na PT", () => {
+  assertEquals(agregarVagaComJogador(LINHAS, "999999999999999999", "FURA-BRUMA"), { ok: false, motivo: "ja_na_pt" });
+});
+
+Deno.test("agregar: respeita o teto de vagas da PT", () => {
+  const cheia = Array.from({ length: MAX_VAGAS_PT }, () => "(0/1) TANK ");
+  assertEquals(agregarVagaComJogador(cheia, "111111111111111111", "SCOUT"), { ok: false, motivo: "limite_vagas" });
+  const quaseCheia = Array.from({ length: MAX_VAGAS_PT - 1 }, () => "(0/1) TANK ");
+  assert(agregarVagaComJogador(quaseCheia, "111111111111111111", "SCOUT").ok);
+});
+
+Deno.test("substituir: apaga UMA vaga livre da função indicada e cria a nova — o tamanho NÃO muda", () => {
+  const r = substituirVagaComJogador(LINHAS, "111111111111111111", "<:x:9> FURA-BRUMA", "MAIN HEALER");
+  assert(r.ok);
+  assert(!r.linhas.some((l) => l.includes("MAIN HEALER")), "a vaga livre indicada devia sumir");
+  assert(r.linhas.includes("(1/1) <:x:9> FURA-BRUMA <@111111111111111111> "));
+  assertEquals(r.linhas[0], "📊 **Vagas:** (2/4)"); // continua 4 vagas
+});
+
+Deno.test("substituir: com 2 vagas livres da mesma função, apaga só UMA", () => {
+  const r = substituirVagaComJogador(LINHAS, "111111111111111111", "FURA-BRUMA", "BADÔNICO");
+  assert(r.ok);
+  assertEquals(r.linhas.filter((l) => l.includes("BADÔNICO")).length, 1);
+});
+
+Deno.test("substituir: NUNCA apaga vaga ocupada — se a indicada foi ocupada, falha", () => {
+  // TANK está ocupada por <@999...>; não pode ser a vaga a remover
+  assertEquals(
+    substituirVagaComJogador(LINHAS, "111111111111111111", "FURA-BRUMA", "TANK"),
+    { ok: false, motivo: "vaga_a_remover_ocupada" },
+  );
+});
+
+Deno.test("substituir: função inexistente na PT também falha (não adivinha)", () => {
+  assertEquals(
+    substituirVagaComJogador(LINHAS, "111111111111111111", "FURA-BRUMA", "SCOUT"),
+    { ok: false, motivo: "vaga_a_remover_ocupada" },
+  );
+});
+
+Deno.test("substituir: não duplica quem já está na PT", () => {
+  assertEquals(
+    substituirVagaComJogador(LINHAS, "999999999999999999", "FURA-BRUMA", "BADÔNICO"),
+    { ok: false, motivo: "ja_na_pt" },
+  );
+});
+
+Deno.test("agregar e substituir não alteram o array original (puras)", () => {
+  const copia = [...LINHAS];
+  agregarVagaComJogador(LINHAS, "111111111111111111", "X");
+  substituirVagaComJogador(LINHAS, "111111111111111111", "X", "MAIN HEALER");
+  assertEquals(LINHAS, copia);
+});
+

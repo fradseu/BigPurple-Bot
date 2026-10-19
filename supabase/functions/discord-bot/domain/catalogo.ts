@@ -43,6 +43,7 @@ function rotuloDaLinha(linha: string): string {
     .replace(/<a?:\w+:\d+>\s*/g, "")
     .replace(/:\w+:\s*/g, "")
     .replace(/<@!?&?\d+>/g, "")
+    .replace(/^[^\p{L}\p{N}]+/u, "") // emoji padrão no começo ("🛡️ TANK" -> "TANK")
     .replace(/\s+/g, " ")
     .trim();
 }

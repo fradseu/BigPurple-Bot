@@ -105,7 +105,7 @@ Deno.serve(async (req: Request) => {
     const pedido = validarPedidoConvite(await req.json().catch(() => null));
     if (!pedido) return jsonResponse({ erro: "pedido inválido" }, 400);
     try {
-      return jsonResponse({ resultados: await processarPedidoConvite(pedido) });
+      return jsonResponse(await processarPedidoConvite(pedido));
     } catch (err) {
       console.error("Erro ao processar convites:", err);
       return jsonResponse({ erro: "falha ao processar convites" }, 500);
