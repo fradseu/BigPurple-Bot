@@ -8,7 +8,6 @@ import {
   ComponentType,
   DiscordEmbed,
 } from "../discord/types.ts";
-import { formatarPseudonimo } from "./pseudonimo.ts";
 
 export interface DisponibilidadeResumo {
   areas: string[];
@@ -21,7 +20,6 @@ export interface DisponibilidadeResumo {
 const timestamp = (ms: number, estilo: "t" | "R") => `<t:${Math.floor(ms / 1000)}:${estilo}>`;
 
 export function montarControle(
-  codigo: string,
   disponibilidade: DisponibilidadeResumo | null,
   agora: number,
 ): { embed: DiscordEmbed; components: ActionRowComponent[] } {
@@ -39,7 +37,8 @@ export function montarControle(
     title: "📬 Sua caixa de convites",
     description: `${situacao}\n\n` +
       `Os convites chegam **aqui**, só pra você, e somem em poucos minutos. ` +
-      `Os líderes veem você como **${formatarPseudonimo(codigo)}** — seu nick só aparece pra quem você aceitar.`,
+      `Os líderes veem só a **classe** e o **tier** que você escolheu — sem nome, sem nick e sem nenhum ` +
+      `código seu. Seu nick só aparece pra quem você aceitar.`,
     color: disponivel ? COR_VERDE : COR_CINZA,
   };
 

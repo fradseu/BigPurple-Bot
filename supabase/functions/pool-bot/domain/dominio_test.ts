@@ -1,7 +1,7 @@
 import { assert, assertEquals } from "@std/assert";
 import { ATIVIDADES_POR_AREA, atividadesDasAreas, MAX_ATIVIDADES, MAX_CLASSES } from "../config.ts";
 import { montarControle } from "./controle.ts";
-import { formatarPseudonimo, gerarCodigo } from "./pseudonimo.ts";
+import { gerarCodigo } from "./pseudonimo.ts";
 import {
   aplicarSelecao,
   calcularExpiracao,
@@ -22,7 +22,6 @@ Deno.test("gerarCodigo: 3 caracteres, só do alfabeto sem ambíguos", () => {
 
 Deno.test("gerarCodigo: determinístico com rng injetado", () => {
   assertEquals(gerarCodigo(() => 0), "AAA");
-  assertEquals(formatarPseudonimo("K7M"), "Candidato #K7M");
 });
 
 Deno.test("wizard: estado inicial já tem duração padrão, falta o resto", () => {
@@ -142,9 +141,8 @@ Deno.test("calcularExpiracao: soma os minutos", () => {
 const AGORA = Date.UTC(2026, 9, 19, 12, 0, 0);
 
 Deno.test("controle: sem disponibilidade mostra ⚪ e desabilita 'Sair da lista'", () => {
-  const { embed, components } = montarControle("K7M", null, AGORA);
+  const { embed, components } = montarControle(null, AGORA);
   assert(embed.description!.includes("não está na lista"));
-  assert(embed.description!.includes("Candidato #K7M"));
   const botoes = components[0].components;
   assertEquals("label" in botoes[0] && botoes[0].label, "Ficar disponível");
   assertEquals("disabled" in botoes[1] && botoes[1].disabled, true);
@@ -152,7 +150,6 @@ Deno.test("controle: sem disponibilidade mostra ⚪ e desabilita 'Sair da lista'
 
 Deno.test("controle: disponível mostra os dados, vira 'Alterar' e habilita sair", () => {
   const { embed, components } = montarControle(
-    "K7M",
     { areas: ["PVE"], atividades: ["DG Grupo"], classes: ["BADÔNICO"], tier: "T7", expiraEm: AGORA + 3_600_000 },
     AGORA,
   );
@@ -167,7 +164,6 @@ Deno.test("controle: disponível mostra os dados, vira 'Alterar' e habilita sair
 
 Deno.test("controle: disponibilidade já vencida é tratada como 'não está na lista'", () => {
   const { embed } = montarControle(
-    "K7M",
     { areas: ["PVE"], atividades: ["DG Grupo"], classes: ["TANK"], tier: "T6", expiraEm: AGORA - 1000 },
     AGORA,
   );
@@ -175,6 +171,12 @@ Deno.test("controle: disponibilidade já vencida é tratada como 'não está na 
 });
 
 Deno.test("controle: nunca mostra nick nem menção de usuário", () => {
-  const { embed } = montarControle("K7M", null, AGORA);
+  const { embed } = montarControle(null, AGORA);
   assert(!/<@!?\d+>/.test(JSON.stringify(embed)));
+});
+
+Deno.test("controle: o candidato não vê nenhum código nem 'Candidato #...' seu", () => {
+  const { embed } = montarControle(null, AGORA);
+  assert(!/Candidato\s*#|#[A-Z0-9]{3}\b/.test(embed.description!));
+  assert(embed.description!.includes("sem nome, sem nick e sem nenhum código"));
 });

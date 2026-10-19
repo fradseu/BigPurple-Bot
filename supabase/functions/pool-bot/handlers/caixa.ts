@@ -48,8 +48,7 @@ export async function garantirCaixa(
   try {
     await adicionarMembroAoTopico(topico.id, userId);
 
-    let codigo = gerarCodigo();
-    const inicial = montarControle(codigo, null, Date.now());
+    const inicial = montarControle(null, Date.now());
     const controle = await enviarMensagem(topico.id, {
       embeds: [inicial.embed],
       components: inicial.components,
@@ -60,7 +59,7 @@ export async function garantirCaixa(
         guild_id: guildId,
         user_id: userId,
         thread_id: topico.id,
-        pseudonimo: codigo,
+        pseudonimo: gerarCodigo(),
         controle_mensagem_id: controle.id,
       });
 
@@ -74,10 +73,8 @@ export async function garantirCaixa(
         throw new Error("A caixa já existia mas não foi encontrada");
       }
 
-      // Código repetido (outro usuário tem o mesmo): sorteia outro e atualiza a mensagem.
-      codigo = gerarCodigo();
-      const novo = montarControle(codigo, null, Date.now());
-      await editarMensagem(topico.id, controle.id, { embeds: [novo.embed], components: novo.components });
+      // Identificador repetido (outro usuário tem o mesmo): sorteia outro. Ninguém vê esse
+      // código, então não há mensagem pra atualizar.
     }
     throw new Error("Não consegui gerar um código único pra caixa");
   } catch (err) {
@@ -94,7 +91,7 @@ export async function atualizarControle(
   caixa: CaixaRow,
   disponibilidade: DisponibilidadeResumo | null,
 ): Promise<void> {
-  const { embed, components } = montarControle(caixa.pseudonimo, disponibilidade, Date.now());
+  const { embed, components } = montarControle(disponibilidade, Date.now());
   const payload = { embeds: [embed], components };
 
   try {

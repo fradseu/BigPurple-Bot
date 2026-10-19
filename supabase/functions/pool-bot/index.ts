@@ -116,7 +116,8 @@ Deno.serve(async (req: Request) => {
       return new Response("unauthorized", { status: 401 });
     }
     try {
-      return jsonResponse(await sincronizarCaixas());
+      const reparar = new URL(req.url).searchParams.get("reparar") === "1";
+      return jsonResponse(await sincronizarCaixas({ reparar }));
     } catch (err) {
       console.error("Erro na sincronização de caixas:", err);
       return jsonResponse({ erro: "falha na sincronização" }, 500);

@@ -84,7 +84,7 @@ async function carregarCatalogo(interaction: DiscordInteraction, ptMsgId: string
   const liderId = extrairLiderIdDoCriador(pt.content);
 
   const [candidatos, jaConvidados] = await Promise.all([
-    listarDisponiveis({ guildId, area, atividades: extrairAtividadesDaPT(pt.content) }),
+    listarDisponiveis({ guildId, ptMsgId, area, atividades: extrairAtividadesDaPT(pt.content) }),
     listarConvitesPendentesDaPT(ptMsgId),
   ]);
 

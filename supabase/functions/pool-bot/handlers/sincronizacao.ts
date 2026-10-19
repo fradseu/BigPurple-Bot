@@ -19,6 +19,7 @@ export interface ResultadoSincronizacao {
   falhas: number;
   pendentes: number; // ainda sem caixa depois desta rodada (ficam pra próxima)
   semPermissao: boolean; // Server Members Intent desligada
+  reparadas: number; // só com `reparar`: caixas que tiveram a mensagem de controle reescrita
 }
 
 const MAX_PAGINAS = 10; // 10.000 membros: bem além do que isso precisa
@@ -35,13 +36,16 @@ async function listarTodosOsMembros(guildId: string): Promise<MembroDoServidor[]
   return todos;
 }
 
-export async function sincronizarCaixas(): Promise<ResultadoSincronizacao> {
+// `reparar` (chamada manual, nunca o agendador): além de criar as que faltam, reescreve a
+// mensagem de controle de TODAS as caixas existentes — útil quando o texto do painel muda.
+export async function sincronizarCaixas(opcoes: { reparar?: boolean } = {}): Promise<ResultadoSincronizacao> {
   const resultado: ResultadoSincronizacao = {
     servidores: 0,
     caixasCriadas: 0,
     falhas: 0,
     pendentes: 0,
     semPermissao: false,
+    reparadas: 0,
   };
 
   for (const { guildId, canalPoolId } of await listarServidoresComPool()) {
@@ -70,6 +74,18 @@ export async function sincronizarCaixas(): Promise<ResultadoSincronizacao> {
         // Uma pessoa com problema (saiu, DM/permissão) não pode travar as outras.
         resultado.falhas++;
         console.error("Erro ao criar caixa na varredura:", err);
+      }
+    }
+
+    if (opcoes.reparar) {
+      for (const userId of await listarUsuariosComCaixa(guildId)) {
+        try {
+          await prepararCaixa(guildId, userId, canalPoolId);
+          resultado.reparadas++;
+        } catch (err) {
+          resultado.falhas++;
+          console.error("Erro ao reparar caixa:", err);
+        }
       }
     }
 

@@ -2,6 +2,7 @@
 // Só traz as colunas necessárias. `user_id` é lido APENAS pra excluir quem já está na
 // PT / é o líder — nunca vai pra nenhuma tela (veja domain/catalogo.ts).
 import { CandidatoBruto } from "../domain/catalogo.ts";
+import { codigosParaPT } from "../domain/codigoAnonimo.ts";
 import { obterClienteSupabase } from "./client.ts";
 
 export async function obterConfigPool(
@@ -17,15 +18,17 @@ export async function obterConfigPool(
 }
 
 // Disponíveis AGORA (ativos e não vencidos) na área da PT. Se a PT declara atividades,
-// só quem tem pelo menos uma delas em comum.
+// só quem tem pelo menos uma delas em comum. O código que o líder vê é derivado da PT
+// (veja domain/codigoAnonimo.ts); o código interno da caixa nem é lido aqui.
 export async function listarDisponiveis(params: {
   guildId: string;
+  ptMsgId: string;
   area: string;
   atividades: string[];
 }): Promise<CandidatoBruto[]> {
   let consulta = obterClienteSupabase()
     .from("pool_disponibilidades")
-    .select("id, user_id, pseudonimo, areas, classes, tier, criado_em")
+    .select("id, user_id, areas, classes, tier, criado_em")
     .eq("guild_id", params.guildId)
     .eq("status", "ativa")
     .gt("expira_em", new Date().toISOString())
@@ -35,10 +38,11 @@ export async function listarDisponiveis(params: {
   const { data, error } = await consulta;
   if (error) throw new Error(`Erro ao listar disponíveis: ${error.message}`);
 
+  const codigos = await codigosParaPT((data ?? []).map((d) => d.id), params.ptMsgId);
   return (data ?? []).map((d) => ({
     id: d.id,
     userId: d.user_id,
-    codigo: d.pseudonimo,
+    codigo: codigos.get(d.id)!,
     classes: d.classes,
     tier: d.tier,
     areas: d.areas,
