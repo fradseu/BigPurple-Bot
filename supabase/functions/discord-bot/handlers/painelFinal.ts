@@ -38,6 +38,7 @@ import {
 } from "../domain/emoji.ts";
 import { atualizarResumoVagas, gerarLinhasDaFuncao } from "../domain/vagas.ts";
 import { calcularDificuldade } from "../domain/dificuldade.ts";
+import { ID_ABRIR_CATALOGO } from "../domain/catalogo.ts";
 import { HandlerResult } from "./context.ts";
 import { montarBotoesBonus } from "./ui.ts";
 
@@ -142,6 +143,13 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
         style: ButtonStyle.Primary,
       };
 
+      const btnDisponiveis = {
+        type: 2 as const,
+        custom_id: ID_ABRIR_CATALOGO,
+        label: "👥 Ver disponíveis",
+        style: ButtonStyle.Secondary,
+      };
+
       const dificuldadeInfo = calcularDificuldade(dados);
 
       const linhasVagasComResumo = atualizarResumoVagas(linhasVagas);
@@ -190,7 +198,7 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
         components: [
           actionRow(dropdownPublico),
           montarBotoesBonus(),
-          actionRow(btnDesistir, btnSalaVoz),
+          actionRow(btnDesistir, btnSalaVoz, btnDisponiveis),
         ],
       });
 

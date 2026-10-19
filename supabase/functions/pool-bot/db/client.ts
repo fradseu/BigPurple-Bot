@@ -9,7 +9,27 @@ export type StatusDisponibilidade = "ativa" | "cancelada" | "expirada" | "aceita
 export type PoolConfigRow = {
   guild_id: string;
   canal_pool_id: string | null;
+  areas_canais: Record<string, string>; // { "<canal de ping>": "PVE" | "PVP" | "FAC" | "AVALON" }
   atualizado_em: string;
+};
+
+export type StatusConvite = "pendente" | "aceito" | "recusado" | "expirado" | "cancelado";
+
+export type ConviteRow = {
+  id: string;
+  guild_id: string;
+  disponibilidade_id: string;
+  candidato_user_id: string;
+  lider_user_id: string;
+  pt_canal_id: string;
+  pt_mensagem_id: string;
+  pt_titulo: string;
+  classe: string;
+  thread_id: string | null;
+  mensagem_id: string | null;
+  status: StatusConvite;
+  expira_em: string;
+  criado_em: string;
 };
 
 export type CaixaRow = {
@@ -61,6 +81,14 @@ export interface Database {
         Row: DisponibilidadeRow;
         Insert: Omit<DisponibilidadeRow, "id" | "status" | "criado_em"> & Partial<DisponibilidadeRow>;
         Update: Partial<DisponibilidadeRow>;
+        Relationships: [];
+      };
+      pool_convites: {
+        Row: ConviteRow;
+        Insert:
+          & Omit<ConviteRow, "id" | "status" | "criado_em" | "thread_id" | "mensagem_id">
+          & Partial<ConviteRow>;
+        Update: Partial<ConviteRow>;
         Relationships: [];
       };
       pool_wizard: {

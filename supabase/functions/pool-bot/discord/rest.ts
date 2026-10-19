@@ -109,3 +109,13 @@ export async function adicionarMembroAoTopico(topicoId: string, userId: string):
 export async function apagarCanal(canalId: string): Promise<void> {
   await discordFetch(`/channels/${canalId}`, { method: "DELETE" });
 }
+
+// Apaga uma mensagem (usado pro convite sumir: aceito, recusado, expirado ou cancelado).
+// Mensagem que já não existe não é erro — o objetivo (ela sumir) já foi alcançado.
+export async function apagarMensagem(canalId: string, mensagemId: string): Promise<void> {
+  try {
+    await discordFetch(`/channels/${canalId}/messages/${mensagemId}`, { method: "DELETE" });
+  } catch (err) {
+    if (!erroNaoEncontrado(err)) throw err;
+  }
+}

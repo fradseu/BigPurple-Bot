@@ -1,9 +1,11 @@
 // pool.ts - Leitura/escrita das tabelas do pool.
 import {
   CaixaRow,
+  ConviteRow,
   DisponibilidadeRow,
   obterClienteSupabase,
   PoolConfigRow,
+  StatusConvite,
   WizardRow,
 } from "./client.ts";
 
@@ -148,6 +150,125 @@ export async function registrarDisponibilidade(
   const { data, error } = await db().from("pool_disponibilidades").insert(dados).select().single();
   if (error) throw new Error(`Erro ao registrar disponibilidade: ${error.message}`);
   return data;
+}
+
+export async function obterDisponibilidadePorId(id: string): Promise<DisponibilidadeRow | null> {
+  const { data, error } = await db().from("pool_disponibilidades").select().eq("id", id).maybeSingle();
+  if (error) throw new Error(`Erro ao ler disponibilidade: ${error.message}`);
+  return data;
+}
+
+// Quem aceitou um convite sai do catálogo (status 'aceita').
+export async function marcarDisponibilidadeAceita(id: string): Promise<void> {
+  const { error } = await db().from("pool_disponibilidades").update({ status: "aceita" }).eq("id", id).eq("status", "ativa");
+  if (error) throw new Error(`Erro ao marcar disponibilidade como aceita: ${error.message}`);
+}
+
+// --------------------------------------------------------------- convites
+
+export type ResultadoCriarConvite =
+  | { tipo: "criado"; convite: ConviteRow }
+  | { tipo: "ja_convidado" }; // o índice único barrou: já existe convite pendente pra essa PT
+
+export async function criarConvite(
+  dados: Pick<
+    ConviteRow,
+    | "guild_id"
+    | "disponibilidade_id"
+    | "candidato_user_id"
+    | "lider_user_id"
+    | "pt_canal_id"
+    | "pt_mensagem_id"
+    | "pt_titulo"
+    | "classe"
+    | "thread_id"
+    | "expira_em"
+  >,
+): Promise<ResultadoCriarConvite> {
+  const { data, error } = await db().from("pool_convites").insert(dados).select().single();
+  if (error) {
+    if (error.code === "23505") return { tipo: "ja_convidado" };
+    throw new Error(`Erro ao criar convite: ${error.message}`);
+  }
+  return { tipo: "criado", convite: data };
+}
+
+export async function registrarMensagemDoConvite(id: string, mensagemId: string): Promise<void> {
+  const { error } = await db().from("pool_convites").update({ mensagem_id: mensagemId }).eq("id", id);
+  if (error) throw new Error(`Erro ao registrar mensagem do convite: ${error.message}`);
+}
+
+export async function contarConvitesPendentesDaPT(ptMensagemId: string): Promise<number> {
+  const { count, error } = await db()
+    .from("pool_convites")
+    .select("id", { count: "exact", head: true })
+    .eq("pt_mensagem_id", ptMensagemId)
+    .eq("status", "pendente")
+    .gt("expira_em", new Date().toISOString());
+  if (error) throw new Error(`Erro ao contar convites pendentes: ${error.message}`);
+  return count ?? 0;
+}
+
+// Responde um convite de forma ATÔMICA: só muda se ainda estiver pendente, não vencido
+// e for DESTA pessoa. Duas respostas ao mesmo tempo (ou um duplo clique) nunca passam
+// as duas — a segunda recebe null.
+export async function responderConvite(
+  id: string,
+  candidatoUserId: string,
+  novoStatus: Extract<StatusConvite, "aceito" | "recusado">,
+): Promise<ConviteRow | null> {
+  const { data, error } = await db()
+    .from("pool_convites")
+    .update({ status: novoStatus })
+    .eq("id", id)
+    .eq("candidato_user_id", candidatoUserId)
+    .eq("status", "pendente")
+    .gt("expira_em", new Date().toISOString())
+    .select()
+    .maybeSingle();
+  if (error) throw new Error(`Erro ao responder convite: ${error.message}`);
+  return data;
+}
+
+export async function definirStatusConvite(id: string, status: StatusConvite): Promise<void> {
+  const { error } = await db().from("pool_convites").update({ status }).eq("id", id);
+  if (error) throw new Error(`Erro ao atualizar convite: ${error.message}`);
+}
+
+// Cancela os OUTROS convites pendentes de quem acabou de aceitar um (devolve pra apagar as mensagens).
+export async function cancelarOutrosConvites(disponibilidadeId: string, exceto: string): Promise<ConviteRow[]> {
+  const { data, error } = await db()
+    .from("pool_convites")
+    .update({ status: "cancelado" })
+    .eq("disponibilidade_id", disponibilidadeId)
+    .eq("status", "pendente")
+    .neq("id", exceto)
+    .select();
+  if (error) throw new Error(`Erro ao cancelar outros convites: ${error.message}`);
+  return data ?? [];
+}
+
+// Cancela os convites pendentes de uma disponibilidade (ex: a pessoa saiu da lista).
+export async function cancelarConvitesDaDisponibilidade(disponibilidadeId: string): Promise<ConviteRow[]> {
+  const { data, error } = await db()
+    .from("pool_convites")
+    .update({ status: "cancelado" })
+    .eq("disponibilidade_id", disponibilidadeId)
+    .eq("status", "pendente")
+    .select();
+  if (error) throw new Error(`Erro ao cancelar convites da disponibilidade: ${error.message}`);
+  return data ?? [];
+}
+
+export async function expirarConvitesVencidos(agora: Date): Promise<ConviteRow[]> {
+  const { data, error } = await db()
+    .from("pool_convites")
+    .update({ status: "expirado" })
+    .eq("status", "pendente")
+    .lte("expira_em", agora.toISOString())
+    .select();
+  if (error) throw new Error(`Erro ao expirar convites: ${error.message}`);
+  return data ?? [];
 }
 
 // Marca como expiradas as ativas vencidas e devolve quais foram (a atualização

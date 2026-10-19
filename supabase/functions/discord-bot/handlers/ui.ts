@@ -21,6 +21,7 @@ import {
   parseClasseComEmoji,
 } from "../domain/emoji.ts";
 import { MARCADOR_SALA_VOZ, listarJogadoresInscritos } from "../domain/vagas.ts";
+import { ID_ABRIR_CATALOGO } from "../domain/catalogo.ts";
 
 // `selecionados` marca quais opções já foram escolhidas antes — sem isso,
 // toda vez que a mensagem é redesenhada (ex: depois do modal de título), os
@@ -397,6 +398,13 @@ export async function atualizarComponentesPainel(
       custom_id: "sala_voz_toggle",
       label: temSalaDeVoz ? "🔒 Fechar Sala de Voz" : "🔊 Criar Sala de Voz",
       style: temSalaDeVoz ? ButtonStyle.Secondary : ButtonStyle.Primary,
+    },
+    // Catálogo anônimo do Pool (só o líder usa; o handler valida).
+    {
+      type: 2 as const,
+      custom_id: ID_ABRIR_CATALOGO,
+      label: "👥 Ver disponíveis",
+      style: ButtonStyle.Secondary,
     },
   ];
 

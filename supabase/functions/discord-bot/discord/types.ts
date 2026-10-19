@@ -131,6 +131,8 @@ export interface DiscordInteraction {
   token: string;
   guild_id?: string;
   channel_id?: string;
+  // Canal onde a interação aconteceu. Quando é um tópico (PT), `parent_id` é o canal de ping.
+  channel?: { id: string; parent_id?: string | null };
   member?: { user: DiscordUser; nick?: string | null };
   user?: DiscordUser;
   data?: {

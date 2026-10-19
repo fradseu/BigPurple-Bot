@@ -46,6 +46,19 @@ import { handleVagaKickar } from "./handlers/vagaKickar.ts";
 import { handleBonusToggle } from "./handlers/bonusToggle.ts";
 import { handleSalaVozToggle } from "./handlers/salaVoz.ts";
 import { PAGINA_PRIVACIDADE, PAGINA_TERMOS } from "./paginasLegais.ts";
+import {
+  ID_ABRIR_CATALOGO,
+  lerConfirmarConvite,
+  lerSelecaoCatalogo,
+  lerVoltarCatalogo,
+} from "./domain/catalogo.ts";
+import {
+  handleAbrirCatalogo,
+  handleConfirmarConvite,
+  handleSelecionarCandidato,
+  handleVoltarCatalogo,
+} from "./handlers/ptDisponiveis.ts";
+import { inscreverJogadorNaPT, validarPedidoPreencher } from "./handlers/inscricaoInterna.ts";
 import { enviarFollowUp } from "./discord/rest.ts";
 
 const PUBLIC_KEY = Deno.env.get("DISCORD_PUBLIC_KEY") ?? "";
@@ -55,6 +68,14 @@ function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: { "content-type": "application/json" },
   });
+}
+
+// Comparação em tempo constante (não vaza, pelo tempo de resposta, quantos caracteres batem).
+function segredosIguais(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diferenca = 0;
+  for (let i = 0; i < a.length; i++) diferenca |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diferenca === 0;
 }
 
 async function rotear(interaction: DiscordInteraction): Promise<HandlerResult> {
@@ -87,6 +108,15 @@ async function rotear(interaction: DiscordInteraction): Promise<HandlerResult> {
     if (customId === "vaga_publica_desistir") return handleVagaDesistir(interaction);
     if (customId === "vaga_publica_kickar") return handleVagaKickar(interaction);
     if (customId === "sala_voz_toggle") return handleSalaVozToggle(interaction);
+
+    // --- Catálogo anônimo do Pool (líder da PT convida quem está disponível) ---
+    if (customId === ID_ABRIR_CATALOGO) return handleAbrirCatalogo(interaction);
+    const selecaoCatalogo = lerSelecaoCatalogo(customId);
+    if (selecaoCatalogo) return handleSelecionarCandidato(interaction, selecaoCatalogo.ptMsgId);
+    const voltarCatalogo = lerVoltarCatalogo(customId);
+    if (voltarCatalogo) return handleVoltarCatalogo(interaction, voltarCatalogo.ptMsgId);
+    const confirmarConvite = lerConfirmarConvite(customId);
+    if (confirmarConvite) return handleConfirmarConvite(interaction, confirmarConvite);
     if (customId.startsWith("bonus_")) {
       return handleBonusToggle(interaction, customId.replace("bonus_", ""));
     }
@@ -146,6 +176,26 @@ Deno.serve(async (req: Request) => {
 
   if (req.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405 });
+  }
+
+  // Rota INTERNA do bot de Pool: alguém aceitou um convite e precisa entrar na vaga da
+  // PT. Só este bot edita o painel da PT (foi ele que postou). Protegida por segredo
+  // compartilhado entre as functions; não é uma rota do Discord.
+  if (new URL(req.url).pathname.endsWith("/internal/preencher")) {
+    const esperado = Deno.env.get("PT_INTERNAL_SECRET") ?? "";
+    const recebido = req.headers.get("x-internal-secret") ?? "";
+    if (!esperado || !segredosIguais(esperado, recebido)) {
+      return new Response("unauthorized", { status: 401 });
+    }
+    const pedido = validarPedidoPreencher(await req.json().catch(() => null));
+    if (!pedido) return jsonResponse({ ok: false, motivo: "pedido_invalido" }, 400);
+    try {
+      const resultado = await inscreverJogadorNaPT(pedido);
+      return jsonResponse(resultado, 200);
+    } catch (err) {
+      console.error("Erro ao preencher vaga a pedido do pool:", err);
+      return jsonResponse({ ok: false, motivo: "erro" }, 500);
+    }
   }
 
   const signature = req.headers.get("x-signature-ed25519");

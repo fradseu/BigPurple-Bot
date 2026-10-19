@@ -199,3 +199,28 @@ export async function buscarEmojisDaGuilda(guildId: string): Promise<EmojiGuilda
   const res = await discordFetch(`/guilds/${guildId}/emojis`);
   return res.json();
 }
+
+// Lê uma mensagem (usado pra ler o painel de uma PT sem depender de uma interação dela).
+export interface MensagemDiscord {
+  id: string;
+  content: string;
+  components?: ActionRowComponent[];
+  embeds?: DiscordEmbed[];
+}
+
+export async function buscarMensagem(canalId: string, mensagemId: string): Promise<MensagemDiscord | null> {
+  try {
+    const res = await discordFetch(`/channels/${canalId}/messages/${mensagemId}`);
+    return await res.json();
+  } catch (err) {
+    // Mensagem/tópico apagado: não é erro de sistema, é "não existe mais".
+    if (err instanceof Error && /-> 404/.test(err.message)) return null;
+    throw err;
+  }
+}
+
+// Só o necessário de um canal: o pai (se for tópico) diz a qual canal de ping a PT pertence.
+export async function buscarCanal(canalId: string): Promise<{ id: string; parent_id?: string | null }> {
+  const res = await discordFetch(`/channels/${canalId}`);
+  return res.json();
+}

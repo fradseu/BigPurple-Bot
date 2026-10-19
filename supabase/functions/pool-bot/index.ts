@@ -19,6 +19,9 @@ import {
   handleVoltar,
 } from "./handlers/disponibilidade.ts";
 import { expirarEAtualizarCaixas } from "./handlers/expiracao.ts";
+import { handleResponderConvite } from "./handlers/convite.ts";
+import { processarPedidoConvite } from "./handlers/convidar.ts";
+import { lerBotaoConvite, validarPedidoConvite } from "./domain/convite.ts";
 
 const PUBLIC_KEY = Deno.env.get("POOL_PUBLIC_KEY") ?? "";
 
@@ -45,6 +48,11 @@ function rotear(interaction: DiscordInteraction): HandlerResult {
 
   if (interaction.type === InteractionType.MessageComponent) {
     const customId = interaction.data?.custom_id ?? "";
+
+    const botaoConvite = lerBotaoConvite(customId);
+    if (botaoConvite) {
+      return handleResponderConvite(interaction, botaoConvite.acao, botaoConvite.conviteId);
+    }
 
     if (customId === "pool_ficar") return handleAbrirFormulario(interaction);
     if (customId === "pool_sair") return handleSair(interaction);
@@ -82,6 +90,25 @@ Deno.serve(async (req: Request) => {
     } catch (err) {
       console.error("Erro na expiração:", err);
       return jsonResponse({ erro: "falha ao expirar" }, 500);
+    }
+  }
+
+  // Rota interna do bot de CONTEÚDO: o líder escolheu alguém no catálogo. Segredo
+  // compartilhado entre as functions (PT_INTERNAL_SECRET). Responde só o status de cada
+  // item — nunca quem é a pessoa.
+  if (new URL(req.url).pathname.endsWith("/convidar")) {
+    const esperado = Deno.env.get("PT_INTERNAL_SECRET") ?? "";
+    const recebido = req.headers.get("x-internal-secret") ?? "";
+    if (!esperado || !segredosIguais(esperado, recebido)) {
+      return new Response("unauthorized", { status: 401 });
+    }
+    const pedido = validarPedidoConvite(await req.json().catch(() => null));
+    if (!pedido) return jsonResponse({ erro: "pedido inválido" }, 400);
+    try {
+      return jsonResponse({ resultados: await processarPedidoConvite(pedido) });
+    } catch (err) {
+      console.error("Erro ao processar convites:", err);
+      return jsonResponse({ erro: "falha ao processar convites" }, 500);
     }
   }
 

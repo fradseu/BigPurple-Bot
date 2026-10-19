@@ -4,6 +4,7 @@
 import {
   apagarWizard,
   cancelarAtiva,
+  obterAtiva,
   obterCaixa,
   obterConfigPool,
   obterWizard,
@@ -23,6 +24,7 @@ import {
   wizardCompleto,
 } from "../domain/wizard.ts";
 import { atualizarControle, garantirCaixa, resumoDe } from "./caixa.ts";
+import { cancelarConvitesEApagar } from "./convite.ts";
 import { HandlerResult } from "./context.ts";
 import { montarFormulario, montarRevisao } from "./formulario.ts";
 
@@ -158,6 +160,11 @@ export function handleConfirmar(interaction: DiscordInteraction): HandlerResult 
       }
 
       const caixa = await garantirCaixa(guildId, userId, config.canal_pool_id);
+
+      // "Alterar": convites feitos pro perfil antigo perdem o sentido — somem junto.
+      const anterior = await obterAtiva(guildId, userId);
+      if (anterior) await cancelarConvitesEApagar(anterior.id);
+
       const disponibilidade = await registrarDisponibilidade({
         guild_id: guildId,
         user_id: userId,
@@ -211,6 +218,9 @@ export function handleSair(interaction: DiscordInteraction): HandlerResult {
     immediate: deferredUpdate(),
     background: async () => {
       if (!guildId) return;
+      // Quem sai da lista leva os convites pendentes junto (e as mensagens somem da caixa).
+      const ativa = await obterAtiva(guildId, userId);
+      if (ativa) await cancelarConvitesEApagar(ativa.id);
       const tinha = await cancelarAtiva(guildId, userId);
       const caixa = await obterCaixa(guildId, userId);
       if (caixa) await atualizarControle(caixa, null);

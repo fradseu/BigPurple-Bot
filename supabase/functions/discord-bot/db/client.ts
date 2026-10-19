@@ -17,6 +17,37 @@ export interface Database {
         Update: { lider_id?: string; dados?: Record<string, unknown>; atualizado_em?: string };
         Relationships: [];
       };
+      // Tabelas do POOL (bot de pool): este bot só LÊ — quem escreve é o bot de pool.
+      pool_config: {
+        Row: { guild_id: string; canal_pool_id: string | null; areas_canais: Record<string, string> };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      pool_disponibilidades: {
+        Row: {
+          id: string;
+          guild_id: string;
+          user_id: string;
+          pseudonimo: string;
+          areas: string[];
+          atividades: string[];
+          classes: string[];
+          tier: string;
+          expira_em: string;
+          status: string;
+          criado_em: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      pool_convites: {
+        Row: { id: string; disponibilidade_id: string; pt_mensagem_id: string; status: string; expira_em: string };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
