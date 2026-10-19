@@ -3,6 +3,7 @@ import {
   areaDaPT,
   CandidatoBruto,
   extrairAtividadesDaPT,
+  extrairDetalhesDaPT,
   extrairTituloDaPT,
   idConfirmarConvite,
   idSelecaoCatalogo,
@@ -52,6 +53,41 @@ Deno.test("extrairAtividadesDaPT: lê uma ou várias atividades", () => {
 Deno.test("extrairTituloDaPT: tira o negrito da primeira linha", () => {
   assertEquals(extrairTituloDaPT("**🟡 Zona Amarela | DG Grupo | Thetford**\n👑 Criador: <@1>"), "🟡 Zona Amarela | DG Grupo | Thetford");
   assertEquals(extrairTituloDaPT(""), "PT");
+});
+
+const CONTENT_REAL = [
+  "**TESTES**",
+  "👑 Criador: <@439150217338814464>",
+  "📋 **Atividade:** DG Fixa",
+  "📍 **Ponto de Encontro:** Thetford Royal",
+  "🗺️ **Ambiente:** Zona Amarela",
+  "🗓️ **Quando:** 19/10/2026 às 14:19",
+  "",
+  "⚔️ **REQUISITOS MÍNIMOS:**",
+  "• **Builds tier:** T5.0 Equivalente",
+  "• **Set de Skip:** Dispensado",
+  "",
+  "💬 Escolha seu papel no dropdown abaixo. Caso desista da vaga, clique no botão ❌ Sair da PT.",
+  "@everyone",
+].join("\n");
+
+Deno.test("extrairDetalhesDaPT: leva atividade, local, ambiente, quando e requisitos", () => {
+  const d = extrairDetalhesDaPT(CONTENT_REAL);
+  for (const esperado of ["DG Fixa", "Thetford Royal", "Zona Amarela", "19/10/2026", "REQUISITOS MÍNIMOS", "T5.0", "Dispensado"]) {
+    assert(d.includes(esperado), `faltou "${esperado}"`);
+  }
+});
+
+Deno.test("extrairDetalhesDaPT: NUNCA leva o criador, o título repetido, o texto do dropdown nem o @everyone", () => {
+  const d = extrairDetalhesDaPT(CONTENT_REAL);
+  assert(!d.includes("Criador") && !d.includes("439150217338814464"), "vazou o criador");
+  assert(!d.includes("TESTES"), "repetiu o título");
+  assert(!d.includes("Escolha seu papel") && !d.includes("@everyone"), "levou o rodapé do painel");
+});
+
+Deno.test("extrairDetalhesDaPT: painel sem a linha 💬 (formato antigo) não quebra", () => {
+  const d = extrairDetalhesDaPT("**T**\n👑 Criador: <@1>\n📋 **Atividade:** Apagas");
+  assertEquals(d, "📋 **Atividade:** Apagas");
 });
 
 Deno.test("vagasAbertas: só linhas livres, sem repetir função, com rótulo legível", () => {

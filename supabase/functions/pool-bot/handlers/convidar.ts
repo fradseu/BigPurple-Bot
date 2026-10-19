@@ -78,8 +78,8 @@ export async function processarPedidoConvite(pedido: PedidoConvite): Promise<Res
           montarConvite({
             conviteId: criado.convite.id,
             candidatoUserId: disp.user_id,
-            liderUserId: pedido.lider_user_id,
             ptTitulo: pedido.pt_titulo,
+            ptDetalhes: pedido.pt_detalhes,
             classe: item.classe,
             expiraEmMs: expiraEm.getTime(),
           }),

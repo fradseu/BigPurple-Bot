@@ -14,6 +14,7 @@ import { DiscordInteraction, getInteractionUserId } from "../discord/types.ts";
 import {
   areaDaPT,
   extrairAtividadesDaPT,
+  extrairDetalhesDaPT,
   extrairTituloDaPT,
   lerValorOpcao,
   montarCatalogo,
@@ -166,6 +167,7 @@ export function handleConfirmarConvite(
         pt_canal_id: canalId,
         pt_mensagem_id: dados.ptMsgId,
         pt_titulo: extrairTituloDaPT(pt.content),
+        pt_detalhes: extrairDetalhesDaPT(pt.content),
         lider_user_id: liderId,
         itens: [{ disponibilidade_id: dados.dispId, classe: dados.classe }],
       });

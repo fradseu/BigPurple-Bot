@@ -6,6 +6,7 @@ import {
   lerBotaoConvite,
   MAX_CONVITES_POR_PEDIDO,
   montarConvite,
+  sanitizarDetalhes,
   validarPedidoConvite,
 } from "./convite.ts";
 
@@ -36,34 +37,83 @@ Deno.test("botões do convite: ida e volta, e rejeita lixo", () => {
   assertEquals(lerBotaoConvite("pool_ficar"), null);
 });
 
-Deno.test("mensagem do convite: menciona a pessoa, mostra vaga e líder, botões certos", () => {
+const DETALHES_DA_PT = [
+  "👑 Criador: <@222222222222222222>",
+  "📋 **Atividade:** DG Fixa",
+  "📍 **Ponto de Encontro:** Thetford Royal",
+  "🗺️ **Ambiente:** Zona Amarela",
+  "🗓️ **Quando:** 19/10/2026 às 14:19",
+  "",
+  "⚔️ **REQUISITOS MÍNIMOS:**",
+  "• **Builds tier:** T5.0 Equivalente",
+  "• **Set de Skip:** Dispensado",
+].join("\n");
+
+Deno.test("mensagem do convite: menciona a pessoa, mostra PT, detalhes e vaga, botões certos", () => {
   const m = montarConvite({
-    conviteId: UUID, candidatoUserId: "111111111111111111", liderUserId: "222222222222222222",
-    ptTitulo: "DG Grupo | PVE", classe: "BADÔNICO", expiraEmMs: 1_800_000_000_000,
+    conviteId: UUID, candidatoUserId: "111111111111111111",
+    ptTitulo: "TESTES", ptDetalhes: DETALHES_DA_PT, classe: "BADÔNICO", expiraEmMs: 1_800_000_000_000,
   });
   assert(m.content.includes("<@111111111111111111>"));
   assertEquals(m.allowed_mentions.users, ["111111111111111111"]);
   const d = m.embeds[0].description!;
-  assert(d.includes("DG Grupo | PVE") && d.includes("BADÔNICO") && d.includes("<@222222222222222222>"));
+  for (const esperado of ["TESTES", "DG Fixa", "Thetford Royal", "Zona Amarela", "19/10/2026", "REQUISITOS", "T5.0", "Dispensado", "BADÔNICO"]) {
+    assert(d.includes(esperado), `faltou "${esperado}" no convite`);
+  }
   assertEquals(m.components[0].components.map((c) => "custom_id" in c ? c.custom_id : ""), [
     `pool_aceitar:${UUID}`,
     `pool_recusar:${UUID}`,
   ]);
 });
 
-Deno.test("mensagem do convite: não promete anonimato que não existe e não vaza id do candidato no embed", () => {
+Deno.test("ANONIMATO: o convite nunca mostra quem é o líder (nem o criador, nem menção)", () => {
   const m = montarConvite({
-    conviteId: UUID, candidatoUserId: "111111111111111111", liderUserId: "222222222222222222",
+    conviteId: UUID, candidatoUserId: "111111111111111111",
+    ptTitulo: "TESTES", ptDetalhes: DETALHES_DA_PT, classe: "BADÔNICO", expiraEmMs: 1_800_000_000_000,
+  });
+  const tudo = JSON.stringify(m);
+  assert(!tudo.includes("222222222222222222"), "o ID do líder vazou");
+  assert(!/Líder|Criador|👑/.test(tudo), "mencionou líder/criador");
+  // o único usuário mencionado no convite é o próprio candidato
+  const mencoes = [...tudo.matchAll(/<@!?(\d+)>/g)].map((x) => x[1]);
+  assertEquals([...new Set(mencoes)], ["111111111111111111"]);
+});
+
+Deno.test("mensagem do convite: o candidato só é mencionado no content, nunca dentro do embed", () => {
+  const m = montarConvite({
+    conviteId: UUID, candidatoUserId: "111111111111111111",
     ptTitulo: "PT", classe: "TANK", expiraEmMs: 1_800_000_000_000,
   });
-  // o candidato só é mencionado no content (caixa privada), nunca dentro do embed
   assert(!JSON.stringify(m.embeds).includes("111111111111111111"));
+});
+
+Deno.test("sanitizarDetalhes: tira o criador, menções e @everyone, mas mantém o resto", () => {
+  const limpo = sanitizarDetalhes(DETALHES_DA_PT + "\n@everyone <@&333333333333333333>");
+  assert(!limpo.includes("Criador") && !limpo.includes("<@"));
+  assert(!limpo.includes("@everyone")); // não pode marcar ninguém
+  assert(limpo.includes("Thetford Royal") && limpo.includes("Dispensado"));
+});
+
+Deno.test("sanitizarDetalhes: limita o tamanho", () => {
+  assert(sanitizarDetalhes("x".repeat(5000)).length <= 1500);
 });
 
 Deno.test("validarPedidoConvite: aceita o pedido correto", () => {
   const r = validarPedidoConvite(pedidoValido());
   assertEquals(r?.itens.length, 1);
   assertEquals(r?.pt_titulo, "DG Grupo | PVE");
+  assertEquals(r?.pt_detalhes, ""); // detalhes são opcionais
+});
+
+Deno.test("validarPedidoConvite: sanitiza os detalhes que chegam (nunca confia que vieram limpos)", () => {
+  const r = validarPedidoConvite({ ...pedidoValido(), pt_detalhes: DETALHES_DA_PT });
+  assert(r && !r.pt_detalhes.includes("222222222222222222") && !r.pt_detalhes.includes("Criador"));
+  assert(r!.pt_detalhes.includes("Thetford Royal"));
+});
+
+Deno.test("validarPedidoConvite: detalhes com tipo errado são ignorados, não derrubam o pedido", () => {
+  const r = validarPedidoConvite({ ...pedidoValido(), pt_detalhes: { x: 1 } });
+  assertEquals(r?.pt_detalhes, "");
 });
 
 Deno.test("validarPedidoConvite: recusa formatos inválidos", () => {

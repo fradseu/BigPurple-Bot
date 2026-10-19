@@ -27,6 +27,16 @@ export function extrairTituloDaPT(content: string): string {
   return primeira.replace(/\*\*/g, "").trim() || "PT";
 }
 
+// Os detalhes da PT que vão no convite: tudo entre o título e a linha "💬 Escolha seu
+// papel..." — atividade, ponto de encontro, ambiente, quando e requisitos. SEM a linha do
+// criador (o convidado não vê quem é o líder). Linhas em branco das pontas são aparadas.
+export function extrairDetalhesDaPT(content: string): string {
+  const linhas = content.split("\n").slice(1); // a 1ª é o título
+  const fim = linhas.findIndex((l) => l.startsWith("💬"));
+  const miolo = (fim === -1 ? linhas : linhas.slice(0, fim)).filter((l) => !ehLinhaCriador(l));
+  return miolo.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 export interface VagaAberta {
   chave: string; // comparável (sem emoji/acento de formato)
   rotulo: string; // como mostrar ("FURA-BRUMA")

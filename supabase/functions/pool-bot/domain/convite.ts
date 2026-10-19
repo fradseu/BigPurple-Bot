@@ -33,12 +33,32 @@ export function lerBotaoConvite(customId: string): { acao: AcaoConvite; conviteI
   return { acao: m[1] as AcaoConvite, conviteId: m[2] };
 }
 
+const LIMITE_DETALHES = 1500;
+
+// Os detalhes da PT (atividade, ponto de encontro, ambiente, quando, requisitos) vêm
+// do texto do painel. Aqui garantimos que NADA que identifique o líder passe pro convite,
+// mesmo que o bot de conteúdo mande a mais: some a linha do criador, qualquer menção
+// <@id>/<@&id> e os @everyone/@here (pra o convite nunca marcar ninguém).
+export function sanitizarDetalhes(texto: string): string {
+  return texto
+    .split("\n")
+    .filter((linha) => !linha.includes("👑") && !/criador/i.test(linha))
+    .join("\n")
+    .replace(/<@!?&?\d+>/g, "")
+    .replace(/@(everyone|here)/gi, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .slice(0, LIMITE_DETALHES);
+}
+
 // ---- A mensagem do convite (aparece só na caixa privada da pessoa)
+// Mostra O QUE está sendo oferecido (PT, detalhes, vaga) e NÃO quem convida: o líder
+// e a pessoa só se conhecem se ela aceitar e entrar na PT.
 export function montarConvite(params: {
   conviteId: string;
   candidatoUserId: string;
-  liderUserId: string;
   ptTitulo: string;
+  ptDetalhes?: string;
   classe: string;
   expiraEmMs: number;
 }): {
@@ -48,16 +68,17 @@ export function montarConvite(params: {
   allowed_mentions: AllowedMentions;
 } {
   const quando = Math.floor(params.expiraEmMs / 1000);
+  const detalhes = params.ptDetalhes ? sanitizarDetalhes(params.ptDetalhes) : "";
   return {
     // A menção dentro da caixa (só ela e o bot veem) é o que gera a notificação.
     content: `<@${params.candidatoUserId}> 🎯 você recebeu um convite!`,
     embeds: [{
       title: "🎯 Convite para PT",
       description: `**${params.ptTitulo}**\n` +
-        `👑 Líder: <@${params.liderUserId}>\n` +
-        `🛡️ Vaga: **${params.classe}**\n\n` +
+        (detalhes ? `${detalhes}\n\n` : "\n") +
+        `🛡️ **Vaga para você: ${params.classe}**\n\n` +
         `⏳ Este convite some <t:${quando}:R>.\n` +
-        `Seu nick só aparece pra o líder se você **aceitar**. Se recusar, ninguém fica sabendo.`,
+        `Se **aceitar**, você entra na PT e seu nome aparece no painel. Se recusar, ninguém fica sabendo.`,
       color: COR_ROXO,
     }],
     components: [
@@ -88,6 +109,7 @@ export interface PedidoConvite {
   pt_canal_id: string;
   pt_mensagem_id: string;
   pt_titulo: string;
+  pt_detalhes: string; // texto do painel (sem o criador) — já sanitizado aqui
   lider_user_id: string;
   itens: Array<{ disponibilidade_id: string; classe: string }>;
 }
@@ -120,7 +142,10 @@ export function validarPedidoConvite(bruto: unknown): PedidoConvite | null {
     itens.push({ disponibilidade_id: i.disponibilidade_id, classe });
   }
 
-  return { guild_id, pt_canal_id, pt_mensagem_id, pt_titulo, lider_user_id, itens };
+  // Opcional: se vier lixo/tipo errado, segue sem detalhes em vez de recusar o pedido.
+  const pt_detalhes = typeof o.pt_detalhes === "string" ? sanitizarDetalhes(o.pt_detalhes) : "";
+
+  return { guild_id, pt_canal_id, pt_mensagem_id, pt_titulo, pt_detalhes, lider_user_id, itens };
 }
 
 export type StatusItemConvite = "enviado" | "indisponivel" | "ja_convidado" | "limite" | "erro";

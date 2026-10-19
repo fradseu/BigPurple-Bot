@@ -11,6 +11,7 @@ export interface PedidoConvite {
   pt_canal_id: string;
   pt_mensagem_id: string;
   pt_titulo: string;
+  pt_detalhes: string; // atividade, ponto de encontro, ambiente, quando, requisitos (sem o criador)
   lider_user_id: string;
   itens: Array<{ disponibilidade_id: string; classe: string }>;
 }
