@@ -15,8 +15,9 @@ export function urlKillboardJogador(id: string): string {
 // Nome da guilda no jogo — usado pra avisar quando o candidato já está nela.
 export const NOME_GUILDA = "Big Purple";
 
-// Canal onde o dossiê é postado pros recrutadores (PREENCHER).
-export const CANAL_RECRUTADORES_ID = "";
+// Canal onde o dossiê é postado pros recrutadores.
+// TESTE: #geral do "Servidor de FelipePikito". Trocar pelo canal real da guilda.
+export const CANAL_RECRUTADORES_ID = "1561757297385021452";
 
 // Cargo @Recrutador: é marcado a cada candidatura nova e é o único (junto com
 // quem tem "Gerenciar Servidor") que pode Aprovar/Recusar (PREENCHER).
