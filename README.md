@@ -121,6 +121,24 @@ scripts/registerRecrutamentoCommands.ts
 Secrets (`npx supabase secrets set`): `RECRUTAMENTO_DISCORD_TOKEN` e
 `RECRUTAMENTO_PUBLIC_KEY`. Testes: `deno test` dentro da pasta da function.
 
+## Bot Pool de conteúdo (`pool-bot`)
+
+Terceira Edge Function, **terceiro app do Discord**. Jogadores se oferecem de
+forma **anônima** pra uma atividade (ex: DG) e líderes montam grupo a partir do
+catálogo, sem ver o nick de ninguém.
+
+- **Fase 1 (pronta):** "Ficar disponível" (atividade, classe, tier, duração),
+  caixa de entrada privada de cada pessoa (um tópico privado fixo no canal do
+  pool, criado na primeira vez que ela se oferece), mensagem de controle com
+  Alterar / Sair da lista, e expiração automática.
+- **Fase 2 (pendente):** catálogo anônimo pro líder e convite que aparece só na
+  caixa da pessoa (some em 3 min); aceitar entra na vaga da PT.
+
+Secrets: `POOL_DISCORD_TOKEN`, `POOL_PUBLIC_KEY`, `POOL_CRON_SECRET` (a rota
+interna `POST /expirar` é chamada por um job do pg_cron com o header
+`x-cron-secret`; o job é criado direto no banco, não em migration, pra o segredo
+não ir pro Git). Tabelas: `0007_pool.sql`.
+
 ## Plano completo
 
 O plano de arquitetura e decisões tomadas está registrado em

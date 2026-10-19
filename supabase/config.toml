@@ -381,6 +381,10 @@ verify_jwt = false
 # Mesmo motivo do discord-bot: o Discord assina com Ed25519, não manda JWT do Supabase.
 verify_jwt = false
 
+[functions.pool-bot]
+# Idem. A rota interna /expirar (agendador) tem segredo próprio (x-cron-secret) verificado no código.
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
