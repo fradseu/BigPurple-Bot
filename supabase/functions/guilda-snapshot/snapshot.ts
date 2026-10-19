@@ -2,13 +2,14 @@
 // ou saiu e grava uma linha por membro. Rodar duas vezes no mesmo dia só atualiza o retrato
 // daquele dia (a última execução vale).
 import { createClient } from "@supabase/supabase-js";
-import { buscarGuilda, buscarMembros } from "./albion.ts";
+import { buscarGuilda, buscarKills, buscarMembros, buscarMortes } from "./albion.ts";
 import {
   compararMembros,
   dataDeEntrada,
   diaDeBrasilia,
   montarLinhaSnapshot,
   papelDe,
+  resumirKillboard,
 } from "./domain.ts";
 
 export interface ResultadoGuilda {
@@ -17,7 +18,17 @@ export interface ResultadoGuilda {
   membros: number;
   novos: number;
   saidas: number;
+  killboardFalhou?: number; // membros cujo killboard não veio (killboard_ok = false)
   erro?: string;
+}
+
+const LOTE_KILLBOARD = 4;
+
+// Roda `fn` em todos os itens, `tamanho` por vez.
+async function emLotes<T>(itens: T[], tamanho: number, fn: (item: T) => Promise<void>): Promise<void> {
+  for (let i = 0; i < itens.length; i += tamanho) {
+    await Promise.all(itens.slice(i, i + tamanho).map(fn));
+  }
 }
 
 function db() {
@@ -89,6 +100,23 @@ async function tirarRetrato(guildId: string): Promise<ResultadoGuilda> {
     });
   if (erroSnap) throw new Error(`Erro ao gravar retratos: ${erroSnap.message}`);
 
+  // Segunda fase: o killboard de cada membro (o que o dossiê também usa). Vem DEPOIS de gravar o
+  // retrato principal: se o killboard falhar pra alguém, esse alguém fica com `killboard_ok =
+  // false` e o resto do retrato continua valendo. Poucas chamadas ao mesmo tempo, porque a API
+  // do Albion é lenta.
+  let killboardFalhou = 0;
+  await emLotes(atuais, LOTE_KILLBOARD, async (m) => {
+    const [kills, mortes] = await Promise.all([
+      buscarKills(m.Id).catch(() => null),
+      buscarMortes(m.Id).catch(() => null),
+    ]);
+    const resumo = resumirKillboard(kills, mortes, dia);
+    if (!resumo.killboard_ok) killboardFalhou++;
+    const { error } = await supabase.from("guilda_snapshots").update(resumo)
+      .eq("albion_guild_id", guildId).eq("player_id", m.Id).eq("dia", dia);
+    if (error) console.error(`Erro ao gravar killboard de ${m.Name}:`, error.message);
+  });
+
   const { error: erroGuilda } = await supabase.from("guilda_snapshots_guilda").upsert({
     albion_guild_id: guildId,
     dia,
@@ -109,6 +137,7 @@ async function tirarRetrato(guildId: string): Promise<ResultadoGuilda> {
     membros: atuais.length,
     novos: mudancas.novos.length,
     saidas: mudancas.saiu.length,
+    killboardFalhou,
   };
 }
 

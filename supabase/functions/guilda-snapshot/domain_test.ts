@@ -3,8 +3,10 @@ import {
   compararMembros,
   dataDeEntrada,
   diaDeBrasilia,
+  famaTotalDe,
   montarLinhaSnapshot,
   papelDe,
+  resumirKillboard,
 } from "./domain.ts";
 
 const membro = {
@@ -74,6 +76,58 @@ Deno.test("papel: fundador pelo id da API, conselheiros pelo nome (sem diferenci
   assertEquals(papelDe("P1", "FelipePikito", "P1", ["SrEremidas", "Delrith"]), "fundador");
   assertEquals(papelDe("P2", "sreremidas", "P1", ["SrEremidas", "Delrith"]), "conselheiro");
   assertEquals(papelDe("P3", "Yumiyiyiy", "P1", ["SrEremidas", "Delrith"]), "player");
+});
+
+Deno.test("fama total: mesma soma do dossiê (PvE + coleta + craft + pesca + fazenda + PvP)", () => {
+  // 166514438 + 1938285 + 2416016 + 182886 + 886400 + 786193
+  assertEquals(famaTotalDe(membro), 172_724_218);
+  assertEquals(montarLinhaSnapshot("G1", "2026-10-19", membro).fama_total, 172_724_218);
+  assertEquals(famaTotalDe({ Id: "X", Name: "Sem dados" }), 0);
+});
+
+Deno.test("retrato: guarda a aliança, ou null quando não tem", () => {
+  assertEquals(montarLinhaSnapshot("G1", "2026-10-19", { ...membro, AllianceName: "ABC" }).alianca, "ABC");
+  assertEquals(montarLinhaSnapshot("G1", "2026-10-19", membro).alianca, null);
+});
+
+const evento = (iso: string, killerGuilda: string, vitimaGuilda: string, nomeVitima = "Alvo", nomeKiller = "Eu") => ({
+  TimeStamp: iso,
+  TotalVictimKillFame: 1000,
+  Killer: { Name: nomeKiller, GuildName: killerGuilda },
+  Victim: { Name: nomeVitima, GuildName: vitimaGuilda },
+});
+
+Deno.test("killboard: conta eventos, acha a última atividade e as guildas vistas", () => {
+  const kills = [evento("2026-10-19T15:00:00Z", "Big Purple", "Rival", "V1")];
+  const mortes = [
+    evento("2026-10-17T10:00:00Z", "Matador", "Antiga", "Eu", "K1"),
+    evento("2026-10-19T20:00:00Z", "Matador", "Big Purple", "Eu", "K2"),
+  ];
+  const r = resumirKillboard(kills, mortes, "2026-10-19");
+  assertEquals(r.killboard_ok, true);
+  assertEquals(r.kills_recentes, 1);
+  assertEquals(r.mortes_recentes, 2);
+  assertEquals(r.ultima_atividade_pvp, "2026-10-19T20:00:00.000Z");
+  assertEquals(r.eventos_pvp_no_dia, 2); // os dois do dia 19; o do dia 17 não conta
+  assertEquals(r.ultimas_mortes![0].oponente, "K2"); // mais recente primeiro
+  assertEquals(r.guildas_vistas!.map((g) => g.guilda), ["Big Purple", "Antiga"]);
+});
+
+Deno.test("killboard: sem eventos é 'veio e é zero', não 'falhou'", () => {
+  const r = resumirKillboard([], [], "2026-10-19");
+  assertEquals(r.killboard_ok, true);
+  assertEquals(r.kills_recentes, 0);
+  assertEquals(r.ultima_atividade_pvp, null);
+  assertEquals(r.eventos_pvp_no_dia, 0);
+});
+
+Deno.test("killboard: se uma das chamadas falhou, nada vira zero e killboard_ok é false", () => {
+  const r = resumirKillboard(null, [], "2026-10-19");
+  assertEquals(r.killboard_ok, false);
+  assertEquals(r.kills_recentes, null);
+  assertEquals(r.mortes_recentes, null);
+  assertEquals(r.eventos_pvp_no_dia, null);
+  assertEquals(r.guildas_vistas, null);
 });
 
 Deno.test("membros: separa novos, quem voltou e quem saiu", () => {

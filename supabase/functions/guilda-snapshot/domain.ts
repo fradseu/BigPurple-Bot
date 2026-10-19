@@ -4,10 +4,21 @@
 export type Papel = "fundador" | "conselheiro" | "player";
 export type OrigemEntrada = "dia_seguinte_a_fundacao" | "primeiro_dia_visto";
 
+import { montarHistoricoGuildas, PassagemGuilda } from "../_shared/albion/historico.ts";
+
+// Evento do killboard (kill ou morte) como a API devolve; só o que usamos.
+export interface EventoKillboard {
+  TimeStamp: string;
+  TotalVictimKillFame?: number;
+  Killer: { Name: string; GuildName?: string | null };
+  Victim: { Name: string; GuildName?: string | null };
+}
+
 // Só o que usamos da resposta de /guilds/{id}/members. Todo campo pode faltar.
 export interface MembroApi {
   Id: string;
   Name: string;
+  AllianceName?: string | null;
   KillFame?: number;
   DeathFame?: number;
   FameRatio?: number;
@@ -27,6 +38,8 @@ export interface LinhaSnapshot {
   player_id: string;
   dia: string;
   nome: string;
+  alianca: string | null;
+  fama_total: number | null;
   kill_fame: number | null;
   death_fame: number | null;
   fame_ratio: number | null;
@@ -62,6 +75,14 @@ function numero(valor: unknown): number | null {
   return typeof valor === "number" && Number.isFinite(valor) ? Math.trunc(valor) : null;
 }
 
+// A "fama total" do dossiê do recrutamento: PvE + coleta + craft + pesca + fazenda + PvP (kill
+// fame). Mesma soma, pra o número daqui bater com o que o recrutador viu na candidatura.
+export function famaTotalDe(m: MembroApi): number {
+  const e = m.LifetimeStatistics;
+  return (e?.PvE?.Total ?? 0) + (e?.Gathering?.All?.Total ?? 0) + (e?.Crafting?.Total ?? 0) +
+    (e?.FishingFame ?? 0) + (e?.FarmingFame ?? 0) + (m.KillFame ?? 0);
+}
+
 export function montarLinhaSnapshot(guildId: string, dia: string, m: MembroApi): LinhaSnapshot {
   const e = m.LifetimeStatistics ?? {};
   const coleta = e.Gathering ?? {};
@@ -70,6 +91,8 @@ export function montarLinhaSnapshot(guildId: string, dia: string, m: MembroApi):
     player_id: m.Id,
     dia,
     nome: m.Name,
+    alianca: m.AllianceName || null,
+    fama_total: famaTotalDe(m),
     kill_fame: numero(m.KillFame),
     death_fame: numero(m.DeathFame),
     fame_ratio: typeof m.FameRatio === "number" ? m.FameRatio : null,
@@ -98,6 +121,77 @@ export function montarLinhaSnapshot(guildId: string, dia: string, m: MembroApi):
     crystal: numero(e.CrystalLeague),
     estatisticas_em: e.Timestamp ?? null,
     bruto: m,
+  };
+}
+
+export interface EventoResumo {
+  quando: number; // epoch ms
+  oponente: string;
+  guildaOponente: string | null;
+  fama: number;
+}
+
+export interface ResumoKillboard {
+  killboard_ok: boolean;
+  ultima_atividade_pvp: string | null;
+  kills_recentes: number | null;
+  mortes_recentes: number | null;
+  eventos_pvp_no_dia: number | null;
+  ultimas_kills: EventoResumo[] | null;
+  ultimas_mortes: EventoResumo[] | null;
+  guildas_vistas: PassagemGuilda[] | null;
+}
+
+function resumirEventos(eventos: EventoKillboard[], lado: "killer" | "victim"): EventoResumo[] {
+  return eventos
+    .map((e) => {
+      const oponente = lado === "killer" ? e.Victim : e.Killer;
+      return {
+        quando: Date.parse(e.TimeStamp),
+        oponente: oponente.Name,
+        guildaOponente: oponente.GuildName || null,
+        fama: e.TotalVictimKillFame ?? 0,
+      };
+    })
+    .sort((a, b) => b.quando - a.quando);
+}
+
+// Tudo que o dossiê tira do killboard, mais "quantos eventos de PvP no dia" pro progresso diário.
+// kills/mortes = null quando a chamada falhou: nada vira zero, `killboard_ok` fica false.
+export function resumirKillboard(
+  kills: EventoKillboard[] | null,
+  mortes: EventoKillboard[] | null,
+  dia: string,
+): ResumoKillboard {
+  if (kills === null || mortes === null) {
+    return {
+      killboard_ok: false,
+      ultima_atividade_pvp: null,
+      kills_recentes: null,
+      mortes_recentes: null,
+      eventos_pvp_no_dia: null,
+      ultimas_kills: null,
+      ultimas_mortes: null,
+      guildas_vistas: null,
+    };
+  }
+
+  // A guilda do jogador em cada evento: na kill ele é o Killer, na morte é a Victim.
+  const doJogador = [
+    ...kills.map((e) => ({ quando: Date.parse(e.TimeStamp), guilda: e.Killer.GuildName })),
+    ...mortes.map((e) => ({ quando: Date.parse(e.TimeStamp), guilda: e.Victim.GuildName })),
+  ];
+  const ultima = doJogador.length > 0 ? Math.max(...doJogador.map((e) => e.quando)) : null;
+
+  return {
+    killboard_ok: true,
+    ultima_atividade_pvp: ultima === null ? null : new Date(ultima).toISOString(),
+    kills_recentes: kills.length,
+    mortes_recentes: mortes.length,
+    eventos_pvp_no_dia: doJogador.filter((e) => diaDeBrasilia(e.quando) === dia).length,
+    ultimas_kills: resumirEventos(kills, "killer").slice(0, 3),
+    ultimas_mortes: resumirEventos(mortes, "victim").slice(0, 3),
+    guildas_vistas: montarHistoricoGuildas(doJogador),
   };
 }
 

@@ -1,6 +1,6 @@
 // albion.ts - Cliente da API oficial do Albion (gameinfo, servidor das Américas). A API é lenta
 // e às vezes não responde, então cada chamada tem tempo limite e algumas tentativas.
-import { MembroApi } from "./domain.ts";
+import { EventoKillboard, MembroApi } from "./domain.ts";
 
 const BASE = "https://gameinfo.albiononline.com/api/gameinfo";
 const TEMPO_LIMITE_MS = 45_000;
@@ -39,3 +39,9 @@ async function buscarJson<T>(caminho: string): Promise<T> {
 
 export const buscarGuilda = (id: string) => buscarJson<GuildaApi>(`/guilds/${id}`);
 export const buscarMembros = (id: string) => buscarJson<MembroApi[]>(`/guilds/${id}/members`);
+
+// Killboard do jogador (mesmo que o dossiê usa): kills e mortes recentes.
+export const buscarKills = (playerId: string) =>
+  buscarJson<EventoKillboard[]>(`/players/${encodeURIComponent(playerId)}/kills`);
+export const buscarMortes = (playerId: string) =>
+  buscarJson<EventoKillboard[]>(`/players/${encodeURIComponent(playerId)}/deaths`);
