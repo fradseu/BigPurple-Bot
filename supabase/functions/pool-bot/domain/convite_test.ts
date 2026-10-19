@@ -214,17 +214,17 @@ Deno.test("anti-flood: a primeira vez sempre pode enviar", () => {
   assertEquals(avaliarEnvio(null, T0), { permitido: true });
 });
 
-Deno.test("anti-flood: antes de 5 minutos tem que esperar, e diz quanto falta", () => {
-  const r = avaliarEnvio({ tentativas: 1, ultimoEnvioMs: T0 }, T0 + 2 * MIN);
-  assertEquals(r, { permitido: false, motivo: "espere", esperaSeg: 180, tentativas: 1 });
+Deno.test("anti-flood: antes de 2 minutos tem que esperar, e diz quanto falta", () => {
+  const r = avaliarEnvio({ tentativas: 1, ultimoEnvioMs: T0 }, T0 + 1 * MIN);
+  assertEquals(r, { permitido: false, motivo: "espere", esperaSeg: 60, tentativas: 1 });
 });
 
-Deno.test("anti-flood: com exatamente 5 minutos já pode", () => {
-  assertEquals(avaliarEnvio({ tentativas: 1, ultimoEnvioMs: T0 }, T0 + 5 * MIN), { permitido: true });
+Deno.test("anti-flood: com exatamente 2 minutos já pode", () => {
+  assertEquals(avaliarEnvio({ tentativas: 1, ultimoEnvioMs: T0 }, T0 + 2 * MIN), { permitido: true });
 });
 
 Deno.test("anti-flood: arredonda a espera pra cima (nunca diz 0 segundos faltando)", () => {
-  const r = avaliarEnvio({ tentativas: 2, ultimoEnvioMs: T0 }, T0 + 5 * MIN - 400);
+  const r = avaliarEnvio({ tentativas: 2, ultimoEnvioMs: T0 }, T0 + 2 * MIN - 400);
   assert(!r.permitido && r.motivo === "espere" && r.esperaSeg === 1);
 });
 

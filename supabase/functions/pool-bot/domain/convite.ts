@@ -25,9 +25,10 @@ export function calcularExpiracaoConvite(agoraMs: number): Date {
 export type TipoConvite = "preencher" | "agregar" | "substituir";
 export const TIPOS_CONVITE: TipoConvite[] = ["preencher", "agregar", "substituir"];
 
-// ---- Anti-flood por PT: um envio a cada 5 min e no máximo 5 tentativas. Cada envio
-// (em massa ou um convite avulso) conta como UMA tentativa.
-export const INTERVALO_ENVIO_SEG = 5 * 60;
+// ---- Anti-flood por PT: um envio a cada 2 min e no máximo 5 tentativas. Cada envio
+// (em massa ou um convite avulso) conta como UMA tentativa. O texto "2 minutos" que o
+// líder lê fica no bot de conteúdo (catalogo.ts) — se mudar aqui, mude lá também.
+export const INTERVALO_ENVIO_SEG = 2 * 60;
 export const MAX_TENTATIVAS_POR_PT = 5;
 
 export interface EstadoEnvios {

@@ -216,11 +216,11 @@ Deno.test("tela de confirmar substituição: diz o que será apagado e que depen
   assert(JSON.stringify(t).includes(idSubstituirOk(UUID, PT, 3, 0, "M24")));
 });
 
-Deno.test("tela da massa: lista quem recebe e avisa que gasta UMA tentativa (5 por PT, 1 a cada 5 min)", () => {
+Deno.test("tela da massa: lista quem recebe e avisa que gasta UMA tentativa (5 por PT, 1 a cada 2 min)", () => {
   const t = montarTelaMassa([{ codigo: "M24", classe: "BADÔNICO" }, { codigo: "K7P", classe: "MAIN HEALER" }], PT);
   const txt = t.embeds[0].description!;
   assert(txt.includes("#M24") && txt.includes("#K7P"));
-  assert(txt.includes("1 tentativa") && txt.includes("5 minutos") && txt.includes("5 tentativas"));
+  assert(txt.includes("1 tentativa") && txt.includes("2 minutos") && txt.includes("5 tentativas"));
 });
 
 // ------------------------------------------------------------ o que o líder lê depois
@@ -236,7 +236,8 @@ Deno.test("formatarEspera: segundos, minutos e combinação", () => {
 
 Deno.test("resumo: 1 enviado mostra a validade e as tentativas usadas", () => {
   const t = semNegrito(resumirEnvio({ resultados: [{ status: "enviado" }], tentativas: { usadas: 2, max: 5 } }));
-  assert(t.includes("1 convite enviado") && t.includes("3 minutos") && t.includes("2/5") && t.includes("5 minutos"));
+  assert(t.includes("1 convite enviado") && t.includes("3 minutos") && t.includes("2/5"));
+  assert(t.includes("você pode ofertar a pool de novo daqui a 2 minutos"));
 });
 
 Deno.test("resumo: em massa mistura enviados e não enviados, explicando cada motivo", () => {
@@ -255,7 +256,7 @@ Deno.test("resumo: ninguém recebeu -> diz o porquê, sem fingir sucesso", () =>
 
 Deno.test("resumo: bloqueio por tempo diz quanto esperar", () => {
   const t = resumirEnvio({ resultados: [], bloqueio: { motivo: "espere", esperaSeg: 272, tentativas: 2 } });
-  assert(t.includes("4 min 32 s") && t.includes("1 envio a cada 5 minutos") && t.includes("2/5"));
+  assert(t.includes("4 min 32 s") && t.includes("1 envio a cada 2 minutos") && t.includes("2/5"));
 });
 
 Deno.test("resumo: bloqueio pelo limite manda pro chat (sem prometer 'tente de novo')", () => {

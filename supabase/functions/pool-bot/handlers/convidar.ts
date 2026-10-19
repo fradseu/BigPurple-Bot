@@ -3,7 +3,7 @@
 // caixa privada da pessoa. O pedido traz IDs de DISPONIBILIDADE, nunca o usuário: quem
 // resolve "qual pessoa é essa" é só este lado — o líder nunca vê o nick antes do aceite.
 //
-// Anti-flood por PT: um envio a cada 5 minutos e no máximo 5 tentativas (cada envio, em
+// Anti-flood por PT: um envio a cada 2 minutos e no máximo 5 tentativas (cada envio, em
 // massa ou avulso, é UMA tentativa). Se nenhum convite chegar a ser enviado, a tentativa
 // é devolvida — não queima o limite por convite que nem existia mais.
 import {

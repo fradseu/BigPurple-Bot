@@ -499,7 +499,7 @@ export function montarTelaMassa(itens: Array<{ codigo: string; classe: string }>
       title: "📨 Convidar todos com vaga aberta",
       description: `Convidar estas **${itens.length}** pessoas, cada uma pra vaga livre da sua classe:\n\n` +
         itens.map((i) => `• **#${i.codigo}** · ${i.classe}`).join("\n") +
-        `\n\n⏳ Isso conta como **1 tentativa** de envio. Cada PT tem **1 envio a cada 5 minutos** e ` +
+        `\n\n⏳ Isso conta como **1 tentativa** de envio. Cada PT tem **1 envio a cada 2 minutos** e` +
         `**no máximo 5 tentativas** — depois disso, é no chat. Cada convite vale 3 minutos.`,
       color: COR,
     }],
@@ -542,7 +542,7 @@ export function resumirEnvio(resp: RespostaEnvio | null): string {
   }
   if (resp.bloqueio?.motivo === "espere") {
     return `⏳ Aguarde **${formatarEspera(resp.bloqueio.esperaSeg)}** pra enviar novos convites desta PT ` +
-      `(limite: 1 envio a cada 5 minutos — evita flood). Tentativas usadas: ${resp.bloqueio.tentativas}/5.`;
+      `(limite: 1 envio a cada 2 minutos — evita flood). Tentativas usadas: ${resp.bloqueio.tentativas}/5.`;
   }
 
   const contagem: Record<string, number> = {};
@@ -562,7 +562,7 @@ export function resumirEnvio(resp: RespostaEnvio | null): string {
   if (falhas.length) texto += `\n\nNão enviados:\n• ${falhas.join("\n• ")}`;
   if (resp.tentativas) {
     texto += `\n\n🧮 Tentativas de envio desta PT: **${resp.tentativas.usadas}/${resp.tentativas.max}** ` +
-      `— o próximo só daqui a 5 minutos.`;
+      `— você pode ofertar a pool de novo daqui a 2 minutos.`;
   }
   return texto;
 }

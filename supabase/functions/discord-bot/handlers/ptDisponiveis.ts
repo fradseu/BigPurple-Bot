@@ -5,7 +5,7 @@
 //       🟡 outras classes: sem vaga livre -> 1 por 1, AGREGANDO uma vaga nova ou SUBSTITUINDO
 //                          (cria a vaga dela e apaga uma vaga livre que o líder indicar)
 //
-// Anti-flood (por PT, aplicado no Pool): 1 envio a cada 5 minutos, no máximo 5 tentativas.
+// Anti-flood (por PT, aplicado no Pool): 1 envio a cada 2 minutos, no máximo 5 tentativas.
 // Tudo que pode demorar (banco, Discord) roda depois do "pensando..." pra não estourar os 3s.
 // O nick de quem aceita só aparece quando o painel da PT é atualizado.
 import { deferredReply, deferredUpdate, reply, updateMessage } from "../discord/responses.ts";
