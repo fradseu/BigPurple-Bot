@@ -19,6 +19,7 @@ import {
 import {
   calcularExpiracaoConvite,
   MAX_CONVITES_PENDENTES_POR_PT,
+  MAX_TENTATIVAS_POR_PT,
   montarConvite,
   PedidoConvite,
   RespostaConvidar,
@@ -119,11 +120,18 @@ export async function processarPedidoConvite(pedido: PedidoConvite): Promise<Res
   }
 
   // Nada foi enviado: devolve a tentativa (não queima o limite à toa).
-  if (reserva?.ok && !resultados.some((r) => r.status === "enviado")) {
+  const enviouAlgum = resultados.some((r) => r.status === "enviado");
+  if (reserva?.ok && !enviouAlgum) {
     await devolverEnvio(pedido.pt_mensagem_id, reserva.anterior).catch((e) =>
       console.error("Erro ao devolver tentativa de envio:", e)
     );
   }
 
-  return { resultados };
+  const usadasAntes = reserva?.ok ? (reserva.anterior?.tentativas ?? 0) : 0;
+  return {
+    resultados,
+    tentativas: reserva?.ok
+      ? { usadas: usadasAntes + (enviouAlgum ? 1 : 0), max: MAX_TENTATIVAS_POR_PT }
+      : undefined,
+  };
 }

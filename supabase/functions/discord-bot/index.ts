@@ -48,14 +48,28 @@ import { handleSalaVozToggle } from "./handlers/salaVoz.ts";
 import { PAGINA_PRIVACIDADE, PAGINA_TERMOS } from "./paginasLegais.ts";
 import {
   ID_ABRIR_CATALOGO,
+  lerAgregarOk,
   lerConfirmarConvite,
+  lerMassa,
+  lerMassaOk,
+  lerMenuSubstituir,
   lerSelecaoCatalogo,
+  lerSelecaoOutras,
+  lerSelecaoRemocao,
+  lerSubstituirOk,
   lerVoltarCatalogo,
 } from "./domain/catalogo.ts";
 import {
   handleAbrirCatalogo,
   handleConfirmarConvite,
+  handleEnviarAgregar,
+  handleEnviarMassa,
+  handleEnviarSubstituir,
+  handleMassa,
+  handleMenuSubstituir,
   handleSelecionarCandidato,
+  handleSelecionarOutra,
+  handleSelecionarRemocao,
   handleVoltarCatalogo,
 } from "./handlers/ptDisponiveis.ts";
 import { inscreverJogadorNaPT, validarPedidoPreencher } from "./handlers/inscricaoInterna.ts";
@@ -117,6 +131,21 @@ async function rotear(interaction: DiscordInteraction): Promise<HandlerResult> {
     if (voltarCatalogo) return handleVoltarCatalogo(interaction, voltarCatalogo.ptMsgId);
     const confirmarConvite = lerConfirmarConvite(customId);
     if (confirmarConvite) return handleConfirmarConvite(interaction, confirmarConvite);
+    // 🟡 outras classes (agregar / substituir) e 📨 envio em massa
+    const selecaoOutras = lerSelecaoOutras(customId);
+    if (selecaoOutras) return handleSelecionarOutra(interaction, selecaoOutras.ptMsgId);
+    const agregarOk = lerAgregarOk(customId);
+    if (agregarOk) return handleEnviarAgregar(interaction, agregarOk);
+    const menuSubstituir = lerMenuSubstituir(customId);
+    if (menuSubstituir) return handleMenuSubstituir(interaction, menuSubstituir);
+    const selecaoRemocao = lerSelecaoRemocao(customId);
+    if (selecaoRemocao) return handleSelecionarRemocao(interaction, selecaoRemocao);
+    const substituirOk = lerSubstituirOk(customId);
+    if (substituirOk) return handleEnviarSubstituir(interaction, substituirOk);
+    const massa = lerMassa(customId);
+    if (massa) return handleMassa(interaction, massa.ptMsgId);
+    const massaOk = lerMassaOk(customId);
+    if (massaOk) return handleEnviarMassa(interaction, massaOk.ptMsgId);
     if (customId.startsWith("bonus_")) {
       return handleBonusToggle(interaction, customId.replace("bonus_", ""));
     }

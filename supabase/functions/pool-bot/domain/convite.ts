@@ -222,4 +222,6 @@ export interface ResultadoItemConvite {
 export interface RespostaConvidar {
   resultados: ResultadoItemConvite[];
   bloqueio?: { motivo: "limite" | "espere"; esperaSeg: number; tentativas: number };
+  // Tentativas de envio já usadas nesta PT (ausente no modo de teste, que não tem limite).
+  tentativas?: { usadas: number; max: number };
 }

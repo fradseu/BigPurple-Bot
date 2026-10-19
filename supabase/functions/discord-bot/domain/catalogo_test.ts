@@ -169,7 +169,7 @@ Deno.test("anonimato: a opção do catálogo não carrega o id do usuário", () 
     candidatos: [candidato({ userId: "123456789012345678" })],
     abertas: vagasAbertas(LINHAS), liderId: "1", naPT: new Set(), jaConvidados: new Set(), agoraMs: AGORA,
   });
-  const tela = montarTelaCatalogo(r, PT);
+  const tela = montarTelaCatalogo({ abertas: r, outras: [], ptMsgId: PT });
   assert(!JSON.stringify(r).includes("123456789012345678"));
   assert(!JSON.stringify(tela).includes("123456789012345678"));
   assert(!/<@!?\d+>/.test(JSON.stringify(tela)), "catálogo não pode ter menção de ninguém");
@@ -196,13 +196,14 @@ Deno.test("valor da opção: ida e volta, e rejeita valor adulterado", () => {
 });
 
 Deno.test("tela do catálogo: vazia mostra aviso sem lista; com opções traz uma lista", () => {
-  const vazia = montarTelaCatalogo([], PT);
+  const vazia = montarTelaCatalogo({ abertas: [], outras: [], ptMsgId: PT });
   assertEquals(vazia.components.length, 0);
   assert(vazia.embeds[0].description!.includes("Ninguém disponível"));
-  const cheia = montarTelaCatalogo(
-    [{ disponibilidadeId: UUID, codigo: "M24", classe: "BADÔNICO", tier: "T7", areas: ["PVE"], minutosDisponivel: 3 }],
-    PT,
-  );
+  const cheia = montarTelaCatalogo({
+    abertas: [{ disponibilidadeId: UUID, codigo: "M24", classe: "BADÔNICO", tier: "T7", areas: ["PVE"], minutosDisponivel: 3 }],
+    outras: [],
+    ptMsgId: PT,
+  });
   assertEquals(cheia.components.length, 1);
 });
 
