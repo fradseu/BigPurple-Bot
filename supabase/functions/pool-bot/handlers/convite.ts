@@ -23,7 +23,7 @@ import { MotivoFalhaPreencher, preencherVagaNaPT } from "./conteudoBot.ts";
 const MENSAGEM_EXPIRADO = "⌛ Esse convite expirou ou já foi respondido.";
 
 const MENSAGENS_FALHA: Record<MotivoFalhaPreencher, string> = {
-  vaga_lotada: "😕 Essa vaga acabou de ser preenchida por outra pessoa. Você continua na lista pra próximos convites.",
+  vaga_lotada: "😕 Essa vaga já foi preenchida (ou não existe mais nessa PT). Você continua na lista pra próximos convites.",
   pt_nao_encontrada: "😕 Essa PT não existe mais. Você continua na lista pra próximos convites.",
   ja_na_pt: "ℹ️ Você já está nessa PT.",
   erro: "⚠️ Não consegui te colocar na PT agora. Tente de novo em instantes — você continua na lista.",

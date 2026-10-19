@@ -15,6 +15,7 @@ import {
   montarTelaCatalogo,
   montarTelaConfirmacao,
   usuariosNaPT,
+  vagaContinuaAberta,
   vagasAbertas,
   valorOpcao,
 } from "./catalogo.ts";
@@ -93,6 +94,18 @@ Deno.test("vagasAbertas: só linhas livres, sem repetir função, com rótulo le
 Deno.test("vagasAbertas: ignora ocupadas e a linha do criador", () => {
   const abertas = vagasAbertas(["👑 Criador: <@1>", "(1/1) TANK <@2> ", "(0/1) TANK "]);
   assertEquals(abertas.map((v) => v.rotulo), ["TANK"]);
+});
+
+Deno.test("vagaContinuaAberta: confirma que a vaga ainda está livre (ou não está)", () => {
+  assert(vagaContinuaAberta(LINHAS, "BADÔNICO"));
+  assert(vagaContinuaAberta(LINHAS, "fura-bruma")); // ignora caixa/hífen
+  assert(!vagaContinuaAberta(LINHAS, "TANK")); // ocupada
+  assert(!vagaContinuaAberta(LINHAS, "SCOUT")); // nunca existiu na PT
+});
+
+Deno.test("vagaContinuaAberta: depois que a última vaga da função é ocupada, deixa de estar aberta", () => {
+  const ocupada = LINHAS.map((l) => l.includes("BADÔNICO") ? "(1/1) <:arcolongo:2> BADÔNICO <@5> " : l);
+  assert(!vagaContinuaAberta(ocupada, "BADÔNICO"));
 });
 
 Deno.test("usuariosNaPT: pega as menções das vagas ocupadas", () => {

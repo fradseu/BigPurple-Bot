@@ -1,6 +1,6 @@
 // ptDisponiveis.ts - O líder da PT vê o catálogo ANÔNIMO do Pool e convida alguém.
 //
-//   [👥 Ver disponíveis]  -> lista (só código, classe, tier) filtrada pela PT:
+//   [🔎 Ver disponíveis]  -> lista (só código, classe, tier) filtrada pela PT:
 //                            área do canal de ping + atividade + vagas ainda abertas
 //   escolhe alguém        -> tela de confirmação
 //   [📨 Convidar]         -> manda o pedido pro bot de Pool, que posta o convite na
@@ -20,6 +20,7 @@ import {
   montarTelaCatalogo,
   montarTelaConfirmacao,
   usuariosNaPT,
+  vagaContinuaAberta,
   vagasAbertas,
 } from "../domain/catalogo.ts";
 import { listarConvitesPendentesDaPT, listarDisponiveis, obterConfigPool } from "../db/pool.ts";
@@ -88,7 +89,7 @@ async function montarCatalogoDaPT(params: {
   return montarTelaCatalogo(opcoes, ptMsgId);
 }
 
-// Botão "👥 Ver disponíveis" no painel da PT (só o líder).
+// Botão "🔎 Ver disponíveis" no painel da PT (só o líder).
 export function handleAbrirCatalogo(interaction: DiscordInteraction): HandlerResult {
   const pt = interaction.message!;
   if (getInteractionUserId(interaction) !== extrairLiderIdDoCriador(pt.content)) {
@@ -160,6 +161,14 @@ export function handleConfirmarConvite(
       const pt = await buscarMensagem(canalId, dados.ptMsgId);
       if (!pt) return await terminar("Não encontrei o painel dessa PT (ela foi apagada?).");
       if (extrairLiderIdDoCriador(pt.content) !== liderId) return await terminar(SO_LIDER);
+
+      // O catálogo foi montado antes: a vaga pode ter sido ocupada nesse meio tempo (ou nem
+      // existir mais). Melhor avisar o líder agora do que a pessoa aceitar e não entrar.
+      if (!vagaContinuaAberta(extrairLinhasVagasDoEmbed(pt), dados.classe)) {
+        return await terminar(
+          `😕 A vaga de **${dados.classe}** não está mais livre nessa PT. Volte à lista e escolha outra.`,
+        );
+      }
 
       const resultados = await convidarNoPool({
         guild_id: guildId,

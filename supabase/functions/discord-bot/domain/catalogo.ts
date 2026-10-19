@@ -62,6 +62,13 @@ export function vagasAbertas(linhas: string[]): VagaAberta[] {
   return abertas;
 }
 
+// A vaga dessa função ainda está livre AGORA? Usado ao confirmar um convite: o catálogo
+// foi montado alguns segundos antes, e nesse meio tempo alguém pode ter ocupado a vaga.
+export function vagaContinuaAberta(linhas: string[], classe: string): boolean {
+  const chave = chaveFuncao(classe);
+  return vagasAbertas(linhas).some((v) => v.chave === chave);
+}
+
 // IDs de quem já está na PT (menções "<@id>" nas linhas de vaga).
 export function usuariosNaPT(linhas: string[]): Set<string> {
   const ids = new Set<string>();
@@ -182,7 +189,7 @@ export function montarTelaCatalogo(
     return {
       content: "",
       embeds: [{
-        title: "👥 Disponíveis no Pool",
+        title: "🔎 Disponíveis no Pool",
         description: aviso ?? "Ninguém disponível agora pra essa PT. Tente de novo daqui a pouco — o catálogo muda toda hora.",
         color: COR,
       }],
@@ -199,7 +206,7 @@ export function montarTelaCatalogo(
   return {
     content: "",
     embeds: [{
-      title: "👥 Disponíveis no Pool",
+      title: "🔎 Disponíveis no Pool",
       description: `${aviso ? `${aviso}\n\n` : ""}**${opcoes.length}** opção(ões) pra vagas abertas dessa PT. ` +
         `Você vê só um código — o nick aparece quando a pessoa **aceitar**. Escolha uma pra convidar:`,
       color: COR,

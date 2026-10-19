@@ -146,7 +146,7 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
       const btnDisponiveis = {
         type: 2 as const,
         custom_id: ID_ABRIR_CATALOGO,
-        label: "👥 Ver disponíveis",
+        label: "🔎 Ver disponíveis",
         style: ButtonStyle.Secondary,
       };
 
