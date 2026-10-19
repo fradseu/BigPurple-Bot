@@ -21,12 +21,6 @@ export function extrairAtividadesDaPT(content: string): string[] {
   return m[1].split("+").map((s) => s.trim()).filter(Boolean);
 }
 
-// "**DG Grupo | PVE**\n👑 Criador..." -> "DG Grupo | PVE"
-export function extrairTituloDaPT(content: string): string {
-  const primeira = content.split("\n")[0] ?? "";
-  return primeira.replace(/\*\*/g, "").trim() || "PT";
-}
-
 // Os detalhes da PT que vão no convite: tudo entre o título e a linha "💬 Escolha seu
 // papel..." — atividade, ponto de encontro, ambiente, quando e requisitos. SEM a linha do
 // criador (o convidado não vê quem é o líder). Linhas em branco das pontas são aparadas.

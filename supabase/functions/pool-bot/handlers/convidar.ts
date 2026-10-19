@@ -62,7 +62,6 @@ export async function processarPedidoConvite(pedido: PedidoConvite): Promise<Res
         lider_user_id: pedido.lider_user_id,
         pt_canal_id: pedido.pt_canal_id,
         pt_mensagem_id: pedido.pt_mensagem_id,
-        pt_titulo: pedido.pt_titulo,
         classe: item.classe,
         thread_id: caixa.thread_id,
         expira_em: expiraEm.toISOString(),
@@ -78,7 +77,6 @@ export async function processarPedidoConvite(pedido: PedidoConvite): Promise<Res
           montarConvite({
             conviteId: criado.convite.id,
             candidatoUserId: disp.user_id,
-            ptTitulo: pedido.pt_titulo,
             ptDetalhes: pedido.pt_detalhes,
             classe: item.classe,
             expiraEmMs: expiraEm.getTime(),

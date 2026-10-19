@@ -179,7 +179,6 @@ export async function criarConvite(
     | "lider_user_id"
     | "pt_canal_id"
     | "pt_mensagem_id"
-    | "pt_titulo"
     | "classe"
     | "thread_id"
     | "expira_em"

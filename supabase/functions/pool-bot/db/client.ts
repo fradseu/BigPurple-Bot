@@ -23,7 +23,6 @@ export type ConviteRow = {
   lider_user_id: string;
   pt_canal_id: string;
   pt_mensagem_id: string;
-  pt_titulo: string;
   classe: string;
   thread_id: string | null;
   mensagem_id: string | null;

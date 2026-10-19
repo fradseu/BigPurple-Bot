@@ -4,7 +4,6 @@ import {
   CandidatoBruto,
   extrairAtividadesDaPT,
   extrairDetalhesDaPT,
-  extrairTituloDaPT,
   idConfirmarConvite,
   idSelecaoCatalogo,
   idVoltarCatalogo,
@@ -50,10 +49,6 @@ Deno.test("extrairAtividadesDaPT: lê uma ou várias atividades", () => {
   assertEquals(extrairAtividadesDaPT("sem linha de atividade"), []);
 });
 
-Deno.test("extrairTituloDaPT: tira o negrito da primeira linha", () => {
-  assertEquals(extrairTituloDaPT("**🟡 Zona Amarela | DG Grupo | Thetford**\n👑 Criador: <@1>"), "🟡 Zona Amarela | DG Grupo | Thetford");
-  assertEquals(extrairTituloDaPT(""), "PT");
-});
 
 const CONTENT_REAL = [
   "**TESTES**",

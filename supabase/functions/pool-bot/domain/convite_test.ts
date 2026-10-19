@@ -17,7 +17,6 @@ const pedidoValido = () => ({
   guild_id: SNOW,
   pt_canal_id: SNOW,
   pt_mensagem_id: SNOW,
-  pt_titulo: "DG Grupo | PVE",
   lider_user_id: SNOW,
   itens: [{ disponibilidade_id: UUID, classe: "BADÔNICO" }],
 });
@@ -52,12 +51,12 @@ const DETALHES_DA_PT = [
 Deno.test("mensagem do convite: menciona a pessoa, mostra PT, detalhes e vaga, botões certos", () => {
   const m = montarConvite({
     conviteId: UUID, candidatoUserId: "111111111111111111",
-    ptTitulo: "TESTES", ptDetalhes: DETALHES_DA_PT, classe: "BADÔNICO", expiraEmMs: 1_800_000_000_000,
+    ptDetalhes: DETALHES_DA_PT, classe: "BADÔNICO", expiraEmMs: 1_800_000_000_000,
   });
   assert(m.content.includes("<@111111111111111111>"));
   assertEquals(m.allowed_mentions.users, ["111111111111111111"]);
   const d = m.embeds[0].description!;
-  for (const esperado of ["TESTES", "DG Fixa", "Thetford Royal", "Zona Amarela", "19/10/2026", "REQUISITOS", "T5.0", "Dispensado", "BADÔNICO"]) {
+  for (const esperado of ["DG Fixa", "Thetford Royal", "Zona Amarela", "19/10/2026", "REQUISITOS", "T5.0", "Dispensado", "BADÔNICO"]) {
     assert(d.includes(esperado), `faltou "${esperado}" no convite`);
   }
   assertEquals(m.components[0].components.map((c) => "custom_id" in c ? c.custom_id : ""), [
@@ -69,7 +68,7 @@ Deno.test("mensagem do convite: menciona a pessoa, mostra PT, detalhes e vaga, b
 Deno.test("ANONIMATO: o convite nunca mostra quem é o líder (nem o criador, nem menção)", () => {
   const m = montarConvite({
     conviteId: UUID, candidatoUserId: "111111111111111111",
-    ptTitulo: "TESTES", ptDetalhes: DETALHES_DA_PT, classe: "BADÔNICO", expiraEmMs: 1_800_000_000_000,
+    ptDetalhes: DETALHES_DA_PT, classe: "BADÔNICO", expiraEmMs: 1_800_000_000_000,
   });
   const tudo = JSON.stringify(m);
   assert(!tudo.includes("222222222222222222"), "o ID do líder vazou");
@@ -79,10 +78,24 @@ Deno.test("ANONIMATO: o convite nunca mostra quem é o líder (nem o criador, ne
   assertEquals([...new Set(mencoes)], ["111111111111111111"]);
 });
 
+Deno.test("o TÍTULO da PT não vai no convite (pode identificar o líder/grupo)", () => {
+  const m = montarConvite({
+    conviteId: UUID, candidatoUserId: "111111111111111111",
+    ptDetalhes: DETALHES_DA_PT, classe: "BADÔNICO", expiraEmMs: 1_800_000_000_000,
+  });
+  assert(m.embeds[0].description!.trimStart().startsWith("📋 **Atividade:**"), "o convite deve começar pelos dados da oferta");
+});
+
+Deno.test("pedido com um pt_titulo a mais (bot de conteúdo antigo) não quebra nem vaza o título", () => {
+  const r = validarPedidoConvite({ ...pedidoValido(), pt_titulo: "Grupo do Fulano" });
+  assert(r !== null);
+  assert(!JSON.stringify(r).includes("Grupo do Fulano"));
+});
+
 Deno.test("mensagem do convite: o candidato só é mencionado no content, nunca dentro do embed", () => {
   const m = montarConvite({
     conviteId: UUID, candidatoUserId: "111111111111111111",
-    ptTitulo: "PT", classe: "TANK", expiraEmMs: 1_800_000_000_000,
+    classe: "TANK", expiraEmMs: 1_800_000_000_000,
   });
   assert(!JSON.stringify(m.embeds).includes("111111111111111111"));
 });
@@ -101,7 +114,6 @@ Deno.test("sanitizarDetalhes: limita o tamanho", () => {
 Deno.test("validarPedidoConvite: aceita o pedido correto", () => {
   const r = validarPedidoConvite(pedidoValido());
   assertEquals(r?.itens.length, 1);
-  assertEquals(r?.pt_titulo, "DG Grupo | PVE");
   assertEquals(r?.pt_detalhes, ""); // detalhes são opcionais
 });
 
@@ -121,7 +133,6 @@ Deno.test("validarPedidoConvite: recusa formatos inválidos", () => {
   assertEquals(validarPedidoConvite("texto"), null);
   assertEquals(validarPedidoConvite({ ...pedidoValido(), guild_id: "abc" }), null);
   assertEquals(validarPedidoConvite({ ...pedidoValido(), lider_user_id: "1; drop table" }), null);
-  assertEquals(validarPedidoConvite({ ...pedidoValido(), pt_titulo: "   " }), null);
   assertEquals(validarPedidoConvite({ ...pedidoValido(), itens: [] }), null);
   assertEquals(validarPedidoConvite({ ...pedidoValido(), itens: [{ disponibilidade_id: "x", classe: "TANK" }] }), null);
   assertEquals(validarPedidoConvite({ ...pedidoValido(), itens: [{ disponibilidade_id: UUID, classe: "" }] }), null);

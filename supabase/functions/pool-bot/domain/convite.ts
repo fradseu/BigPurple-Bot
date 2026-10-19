@@ -57,7 +57,6 @@ export function sanitizarDetalhes(texto: string): string {
 export function montarConvite(params: {
   conviteId: string;
   candidatoUserId: string;
-  ptTitulo: string;
   ptDetalhes?: string;
   classe: string;
   expiraEmMs: number;
@@ -74,8 +73,8 @@ export function montarConvite(params: {
     content: `<@${params.candidatoUserId}> 🎯 você recebeu um convite!`,
     embeds: [{
       title: "🎯 Convite para PT",
-      description: `**${params.ptTitulo}**\n` +
-        (detalhes ? `${detalhes}\n\n` : "\n") +
+      // O título da PT NÃO vai no convite (pode identificar o líder/grupo): só os dados da oferta.
+      description: (detalhes ? `${detalhes}\n\n` : "") +
         `🛡️ **Vaga para você: ${params.classe}**\n\n` +
         `⏳ Este convite some <t:${quando}:R>.\n` +
         `Se **aceitar**, você entra na PT e seu nome aparece no painel. Se recusar, ninguém fica sabendo.`,
@@ -108,7 +107,6 @@ export interface PedidoConvite {
   guild_id: string;
   pt_canal_id: string;
   pt_mensagem_id: string;
-  pt_titulo: string;
   pt_detalhes: string; // texto do painel (sem o criador) — já sanitizado aqui
   lider_user_id: string;
   itens: Array<{ disponibilidade_id: string; classe: string }>;
@@ -129,8 +127,7 @@ export function validarPedidoConvite(bruto: unknown): PedidoConvite | null {
   const pt_canal_id = snowflake(o.pt_canal_id);
   const pt_mensagem_id = snowflake(o.pt_mensagem_id);
   const lider_user_id = snowflake(o.lider_user_id);
-  const pt_titulo = texto(o.pt_titulo, 200);
-  if (!guild_id || !pt_canal_id || !pt_mensagem_id || !lider_user_id || !pt_titulo) return null;
+  if (!guild_id || !pt_canal_id || !pt_mensagem_id || !lider_user_id) return null;
 
   if (!Array.isArray(o.itens) || o.itens.length === 0 || o.itens.length > MAX_CONVITES_POR_PEDIDO) return null;
   const itens: PedidoConvite["itens"] = [];
@@ -145,7 +142,7 @@ export function validarPedidoConvite(bruto: unknown): PedidoConvite | null {
   // Opcional: se vier lixo/tipo errado, segue sem detalhes em vez de recusar o pedido.
   const pt_detalhes = typeof o.pt_detalhes === "string" ? sanitizarDetalhes(o.pt_detalhes) : "";
 
-  return { guild_id, pt_canal_id, pt_mensagem_id, pt_titulo, pt_detalhes, lider_user_id, itens };
+  return { guild_id, pt_canal_id, pt_mensagem_id, pt_detalhes, lider_user_id, itens };
 }
 
 export type StatusItemConvite = "enviado" | "indisponivel" | "ja_convidado" | "limite" | "erro";
