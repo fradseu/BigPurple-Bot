@@ -92,6 +92,35 @@ testa o handshake (PING → PONG) nesse momento — só salva se responder certo
   cada push na `main` (precisa dos secrets `SUPABASE_ACCESS_TOKEN` e
   `SUPABASE_PROJECT_ID` cadastrados no repositório do GitHub).
 
+## Bot de Recrutamento (`recrutamento-bot`)
+
+Segunda Edge Function, **outro app do Discord** (outro token/chave), mesmo
+projeto Supabase. Fluxo: o candidato clica em "Solicitar ingresso" → preenche
+nickname, fama total e como conheceu a guilda → o bot consulta a API pública do
+Albion (servidor Americas), monta um **dossiê** e posta no canal dos
+recrutadores, que clicam **Aprovar / Recusar**.
+
+O dossiê traz: guilda/aliança atual, fama total e por tipo (PvE, coleta, craft,
+pesca, fazenda, PvP), comparação com a fama declarada, últimas kills e mortes,
+guildas pelas quais foi visto e alertas. A API oficial **não tem histórico de
+guildas** — ele é reconstruído dos eventos do killboard (só enxerga períodos
+com PvP).
+
+```
+supabase/functions/recrutamento-bot/
+  index.ts           — entrypoint (assinatura, roteamento, erros de background)
+  config.ts          — IDs do canal/cargo dos recrutadores, limites dos alertas
+  albion/            — cliente da API do Albion + montagem do dossiê (testado)
+  domain/            — parser de fama ("1,33b") e histórico de guildas (testado)
+  db/                — tabela recrutamento_candidaturas
+  handlers/          — painel, formulário, Aprovar/Recusar/Atualizar
+supabase/migrations/0003_recrutamento.sql
+scripts/registerRecrutamentoCommands.ts
+```
+
+Secrets (`npx supabase secrets set`): `RECRUTAMENTO_DISCORD_TOKEN` e
+`RECRUTAMENTO_PUBLIC_KEY`. Testes: `deno test` dentro da pasta da function.
+
 ## Plano completo
 
 O plano de arquitetura e decisões tomadas está registrado em

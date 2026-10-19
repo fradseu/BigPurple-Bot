@@ -377,6 +377,10 @@ allow_dynamic_registration = false
 # tomaria 401 antes de chegar no nosso código.
 verify_jwt = false
 
+[functions.recrutamento-bot]
+# Mesmo motivo do discord-bot: o Discord assina com Ed25519, não manda JWT do Supabase.
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
