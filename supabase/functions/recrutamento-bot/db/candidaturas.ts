@@ -45,10 +45,16 @@ export async function obterCandidatura(id: string): Promise<CandidaturaRow | nul
   return data;
 }
 
-export async function buscarPendenteDoUsuario(discordUserId: string): Promise<CandidaturaRow | null> {
+// A pendência vale POR SERVIDOR: quem tem uma candidatura em análise numa guilda
+// continua livre pra se candidatar em outra.
+export async function buscarPendenteDoUsuario(
+  guildId: string,
+  discordUserId: string,
+): Promise<CandidaturaRow | null> {
   const { data, error } = await obterClienteSupabase()
     .from(TABELA)
     .select()
+    .eq("guild_id", guildId)
     .eq("discord_user_id", discordUserId)
     .eq("status", "pendente")
     .limit(1)
@@ -57,12 +63,15 @@ export async function buscarPendenteDoUsuario(discordUserId: string): Promise<Ca
   return data;
 }
 
-// Candidaturas anteriores já decididas (do mesmo Discord OU do mesmo personagem
-// do Albion) — pra avisar o recrutador "esse jogador já tentou entrar antes".
+// Candidaturas anteriores já decididas NESTE servidor (do mesmo Discord OU do
+// mesmo personagem do Albion) — pra avisar o recrutador "esse jogador já tentou
+// entrar antes". Só do próprio servidor: um servidor não enxerga o histórico de outro.
 export async function listarAnteriores(
+  guildId: string | null,
   discordUserId: string,
   albionPlayerId: string | null,
 ): Promise<CandidaturaRow[]> {
+  if (!guildId) return []; // candidatura sem servidor (legado): não há escopo seguro pra consultar
   // Os valores entram numa string de filtro do PostgREST (vírgula/parêntese
   // quebrariam o filtro), então só aceita IDs "limpos" (snowflake / id do Albion).
   const idSeguro = (v: string) => /^[\w-]+$/.test(v);
@@ -73,6 +82,7 @@ export async function listarAnteriores(
   const { data, error } = await obterClienteSupabase()
     .from(TABELA)
     .select()
+    .eq("guild_id", guildId)
     .neq("status", "pendente")
     .or(filtro)
     .order("criado_em", { ascending: false })

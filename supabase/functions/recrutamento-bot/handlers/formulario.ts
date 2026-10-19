@@ -100,7 +100,7 @@ export function handleEnviarFormulario(interaction: DiscordInteraction): Handler
         return;
       }
 
-      const pendente = await buscarPendenteDoUsuario(userId);
+      const pendente = await buscarPendenteDoUsuario(guildId, userId);
       if (pendente) {
         await editarRespostaOriginal(applicationId, token, mensagemJaEmAvaliacao());
         return;

@@ -130,7 +130,7 @@ export async function montarMensagemCandidatura(
 
   // Candidaturas anteriores já decididas (mesmo Discord ou mesmo personagem).
   try {
-    const anteriores = (await listarAnteriores(c.discord_user_id, dossie?.jogador?.id ?? null))
+    const anteriores = (await listarAnteriores(c.guild_id, c.discord_user_id, dossie?.jogador?.id ?? null))
       .filter((a) => a.id !== c.id);
     for (const a of anteriores) {
       alertas.push(
