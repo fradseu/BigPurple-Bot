@@ -25,6 +25,11 @@ import {
 import { editarRespostaOriginal, enviarMensagem } from "../discord/rest.ts";
 import { HandlerResult } from "./context.ts";
 import { montarMensagemCandidatura } from "./mensagemCandidatura.ts";
+import {
+  mensagemCandidaturaRecebida,
+  mensagemJaEmAvaliacao,
+  mensagemNaoConfigurado,
+} from "./mensagensCandidato.ts";
 
 export const ID_MODAL_FORMULARIO = "rec_modal_form";
 
@@ -91,19 +96,13 @@ export function handleEnviarFormulario(interaction: DiscordInteraction): Handler
       const cargoRecrutadorId = config?.cargo_recrutador_id;
 
       if (!guildId || !canalRecrutadoresId) {
-        await editarRespostaOriginal(applicationId, token, {
-          content:
-            "⚠️ O recrutamento ainda não foi configurado neste servidor (falta o canal dos recrutadores). " +
-            "Peça a um administrador pra usar `/recrutamento-config canal`.",
-        });
+        await editarRespostaOriginal(applicationId, token, mensagemNaoConfigurado());
         return;
       }
 
       const pendente = await buscarPendenteDoUsuario(userId);
       if (pendente) {
-        await editarRespostaOriginal(applicationId, token, {
-          content: "⏳ Você já tem uma candidatura **em análise**. Aguarde o retorno dos recrutadores.",
-        });
+        await editarRespostaOriginal(applicationId, token, mensagemJaEmAvaliacao());
         return;
       }
 
@@ -124,9 +123,7 @@ export function handleEnviarFormulario(interaction: DiscordInteraction): Handler
         });
       } catch (err) {
         if (err instanceof CandidaturaDuplicadaError) {
-          await editarRespostaOriginal(applicationId, token, {
-            content: "⏳ Você já tem uma candidatura **em análise**. Aguarde o retorno dos recrutadores.",
-          });
+          await editarRespostaOriginal(applicationId, token, mensagemJaEmAvaliacao());
           return;
         }
         throw err;
@@ -150,9 +147,7 @@ export function handleEnviarFormulario(interaction: DiscordInteraction): Handler
         throw err;
       }
 
-      await editarRespostaOriginal(applicationId, token, {
-        content: "✅ **Candidatura enviada!** Os recrutadores já foram avisados. Você será contatado por aqui no Discord.",
-      });
+      await editarRespostaOriginal(applicationId, token, mensagemCandidaturaRecebida(nickname));
     },
   };
 }
