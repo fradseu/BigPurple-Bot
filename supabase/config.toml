@@ -385,6 +385,10 @@ verify_jwt = false
 # Idem. A rota interna /expirar (agendador) tem segredo próprio (x-cron-secret) verificado no código.
 verify_jwt = false
 
+[functions.guilda-snapshot]
+# Não é bot do Discord: só a rota interna /snapshot (agendador), protegida por GUILDA_CRON_SECRET.
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
