@@ -8,6 +8,7 @@ import {
   decidirCandidatura,
   obterCandidatura,
 } from "../db/candidaturas.ts";
+import { ConfigRow } from "../db/client.ts";
 import { obterConfig, permissoesDe } from "../db/config.ts";
 import { contextoDoMembro, nomeExibicao } from "../discord/membro.ts";
 import { deferredUpdate } from "../discord/responses.ts";
@@ -20,6 +21,7 @@ import {
   getInteractionUserId,
 } from "../discord/types.ts";
 import { ehRecrutador } from "../domain/permissoes.ts";
+import { aplicarAprovacao, resumoDaAplicacao } from "./aprovacao.ts";
 import { HandlerResult } from "./context.ts";
 import { montarMensagemCandidatura } from "./mensagemCandidatura.ts";
 import { Dossie } from "../albion/dossie.ts";
@@ -28,10 +30,16 @@ const SO_RECRUTADOR =
   "❌ Só quem tem o cargo de **recrutador** (ou administradores) pode usar esses botões.";
 
 // Quem clicou é recrutador? Lê a config do servidor no banco — por isso roda
-// no background (depois do defer), não na resposta de 3s do Discord.
-async function clicouUmRecrutador(interaction: DiscordInteraction): Promise<boolean> {
+// no background (depois do defer), não na resposta de 3s do Discord. Devolve a
+// config junto porque a aprovação também precisa dela (cargo de Membro).
+async function verificarRecrutador(
+  interaction: DiscordInteraction,
+): Promise<{ ehRecrutador: boolean; config: ConfigRow | null }> {
   const config = interaction.guild_id ? await obterConfig(interaction.guild_id) : null;
-  return ehRecrutador(contextoDoMembro(interaction), permissoesDe(config));
+  return {
+    ehRecrutador: ehRecrutador(contextoDoMembro(interaction), permissoesDe(config)),
+    config,
+  };
 }
 
 export function handleDecisao(
@@ -49,7 +57,8 @@ export function handleDecisao(
   return {
     immediate: deferredUpdate(),
     background: async () => {
-      if (!(await clicouUmRecrutador(interaction))) {
+      const { ehRecrutador: podeDecidir, config } = await verificarRecrutador(interaction);
+      if (!podeDecidir) {
         await enviarFollowUp(applicationId, token, { content: SO_RECRUTADOR, flags: 64 });
         return;
       }
@@ -67,6 +76,22 @@ export function handleDecisao(
       const embedAtual = mensagem.embeds?.[0] ?? {};
       const quando = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 
+      // Aprovar = também aplicar apelido do jogo + cargo de Membro. A decisão já
+      // está gravada; se algo falhar aqui, ela continua valendo e o recrutador
+      // recebe o motivo (e a mensagem mostra o que foi de fato aplicado).
+      let rodape = `${aprovada ? "✅ Aprovada" : "❌ Recusada"} por ${quem} em ${quando}`;
+      let avisos: string[] = [];
+      if (aprovada && interaction.guild_id) {
+        const resultado = await aplicarAprovacao({
+          guildId: interaction.guild_id,
+          candidatura: decidida,
+          config,
+          aprovadoPorNome: quem,
+        });
+        rodape += ` · ${resumoDaAplicacao(resultado)}`;
+        avisos = resultado.avisos;
+      }
+
       // Mantém só o botão de link (Killboard); Aprovar/Recusar/Atualizar somem.
       const botoesLink = (mensagem.components ?? [])
         .flatMap((linha) => linha.components)
@@ -79,12 +104,18 @@ export function handleDecisao(
         embeds: [{
           ...embedAtual,
           color: aprovada ? COR_APROVADA : COR_RECUSADA,
-          footer: {
-            text: `${aprovada ? "✅ Aprovada" : "❌ Recusada"} por ${quem} em ${quando}`,
-          },
+          footer: { text: rodape },
         }],
         components: componentes,
       });
+
+      if (avisos.length > 0) {
+        await enviarFollowUp(applicationId, token, {
+          content: `✅ Candidatura aprovada, mas **${avisos.length === 1 ? "um ponto precisa" : "alguns pontos precisam"} ` +
+            `da sua atenção:**\n${avisos.map((a) => `• ${a}`).join("\n")}`,
+          flags: 64,
+        });
+      }
     },
   };
 }
@@ -101,7 +132,7 @@ export function handleAtualizarDossie(
   return {
     immediate: deferredUpdate(),
     background: async () => {
-      if (!(await clicouUmRecrutador(interaction))) {
+      if (!(await verificarRecrutador(interaction)).ehRecrutador) {
         await enviarFollowUp(applicationId, token, { content: SO_RECRUTADOR, flags: 64 });
         return;
       }

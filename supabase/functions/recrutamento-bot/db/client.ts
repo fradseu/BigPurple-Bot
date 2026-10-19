@@ -22,6 +22,7 @@ export type CandidaturaRow = {
   mensagem_id: string | null;
   decidido_por: string | null;
   decidido_em: string | null;
+  apelido_aplicado: string | null;
   criado_em: string;
 };
 
@@ -29,11 +30,24 @@ export type ConfigRow = {
   guild_id: string;
   canal_recrutadores_id: string | null;
   cargo_recrutador_id: string | null;
+  cargo_membro_id: string | null;
   autorizados_usuarios: string[];
   autorizados_cargos: string[];
   atualizado_por: string | null;
   atualizado_em: string;
 };
+
+// Colunas que o banco preenche sozinho ou que só existem depois (decisão/mensagem):
+// não são obrigatórias ao criar a candidatura.
+type CamposAutomaticos =
+  | "id"
+  | "status"
+  | "decidido_por"
+  | "decidido_em"
+  | "criado_em"
+  | "canal_id"
+  | "mensagem_id"
+  | "apelido_aplicado";
 
 export interface Database {
   public: {
@@ -46,15 +60,7 @@ export interface Database {
       };
       recrutamento_candidaturas: {
         Row: CandidaturaRow;
-        Insert: Omit<
-          CandidaturaRow,
-          "id" | "status" | "decidido_por" | "decidido_em" | "criado_em" | "canal_id" | "mensagem_id"
-        > & Partial<
-          Pick<
-            CandidaturaRow,
-            "id" | "status" | "decidido_por" | "decidido_em" | "criado_em" | "canal_id" | "mensagem_id"
-          >
-        >;
+        Insert: Omit<CandidaturaRow, CamposAutomaticos> & Partial<Pick<CandidaturaRow, CamposAutomaticos>>;
         Update: Partial<CandidaturaRow>;
         Relationships: [];
       };

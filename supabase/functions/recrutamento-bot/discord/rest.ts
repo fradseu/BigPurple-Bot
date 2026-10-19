@@ -72,6 +72,40 @@ export async function editarRespostaOriginal(
   });
 }
 
+// O motivo aparece no "Registro de Auditoria" do servidor ao lado da ação do bot.
+// Vai num header HTTP, então precisa estar codificado (acentos/emoji quebram o header cru).
+function comMotivo(motivo?: string): Record<string, string> {
+  return motivo ? { "X-Audit-Log-Reason": encodeURIComponent(motivo) } : {};
+}
+
+// Muda o apelido do membro NESTE servidor (precisa de "Gerenciar Apelidos" e do
+// cargo do bot acima do cargo mais alto da pessoa; o Discord nunca deixa mudar o do dono).
+export async function definirApelido(
+  guildId: string,
+  userId: string,
+  apelido: string,
+  motivo?: string,
+): Promise<void> {
+  await discordFetch(`/guilds/${guildId}/members/${userId}`, {
+    method: "PATCH",
+    headers: comMotivo(motivo),
+    body: JSON.stringify({ nick: apelido }),
+  });
+}
+
+// Dá um cargo ao membro (precisa de "Gerenciar Cargos" e do cargo do bot ACIMA do cargo dado).
+export async function adicionarCargo(
+  guildId: string,
+  userId: string,
+  cargoId: string,
+  motivo?: string,
+): Promise<void> {
+  await discordFetch(`/guilds/${guildId}/members/${userId}/roles/${cargoId}`, {
+    method: "PUT",
+    headers: comMotivo(motivo),
+  });
+}
+
 // Mensagem de acompanhamento (equivalente a interaction.followUp()).
 export async function enviarFollowUp(
   applicationId: string,

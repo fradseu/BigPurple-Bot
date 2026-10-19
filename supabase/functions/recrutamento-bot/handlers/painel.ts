@@ -51,7 +51,9 @@ export function handlePainel(interaction: DiscordInteraction): HandlerResult {
           `• **Nickname** (exatamente como é no jogo)\n` +
           `• **Fama total**\n` +
           `• **Como conheceu a guilda**\n\n` +
-          `Um recrutador vai analisar sua candidatura e te dar o retorno.`,
+          `Um recrutador vai analisar sua candidatura e te dar o retorno.\n\n` +
+          `ℹ️ Se for aprovado, você recebe o cargo **Membro** e seu apelido aqui no servidor passa a ser ` +
+          `o seu **nick do jogo** — fixo, só o dono do servidor altera.`,
         color: 0x7b2cbf,
       };
 

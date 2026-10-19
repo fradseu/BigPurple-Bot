@@ -9,6 +9,7 @@
 import {
   autorizar,
   definirCanal,
+  definirCargoMembro,
   definirCargoRecrutador,
   desautorizar,
   obterConfig,
@@ -37,10 +38,12 @@ const lista = (ids: string[], marcador: (id: string) => string) =>
 export function formatarStatus(config: ConfigRow | null): string {
   const canal = config?.canal_recrutadores_id ? `<#${config.canal_recrutadores_id}>` : "❌ não definido";
   const cargo = config?.cargo_recrutador_id ? `<@&${config.cargo_recrutador_id}>` : "❌ não definido";
+  const membro = config?.cargo_membro_id ? `<@&${config.cargo_membro_id}>` : "❌ não definido";
 
   let texto = `**⚙️ Configuração do recrutamento**\n` +
     `📥 Canal dos recrutadores: ${canal}\n` +
-    `🛡️ Cargo @Recrutador: ${cargo}\n\n` +
+    `🛡️ Cargo @Recrutador: ${cargo}\n` +
+    `🪪 Cargo de Membro (dado na aprovação): ${membro}\n\n` +
     `**👥 Autorizados a configurar** (além dos administradores)\n` +
     `• Usuários: ${lista(config?.autorizados_usuarios ?? [], (id) => `<@${id}>`)}\n` +
     `• Cargos: ${lista(config?.autorizados_cargos ?? [], (id) => `<@&${id}>`)}`;
@@ -96,6 +99,19 @@ export function handleConfig(interaction: DiscordInteraction): HandlerResult {
             `✅ Cargo recrutador definido: <@&${cargoId}>\n` +
               `Quem tem esse cargo pode Aprovar/Recusar. Pra ele ser **notificado** a cada candidatura, ` +
               `o cargo precisa estar como "permitir que qualquer pessoa mencione este cargo".`,
+          );
+          return;
+        }
+
+        case "membro": {
+          const cargoId = valorDa(sub.options, "cargo");
+          if (!cargoId) return await responder("⚠️ Escolha um cargo.");
+          await definirCargoMembro(guildId, cargoId, ctx.userId);
+          await responder(
+            `✅ Cargo de membro definido: <@&${cargoId}>\n` +
+              `Quem for **aprovado** recebe esse cargo e o apelido do jogo. Para isso funcionar, o bot precisa das ` +
+              `permissões **Gerenciar Cargos** e **Gerenciar Apelidos**, e o cargo do bot precisa estar ` +
+              `**acima** desse cargo na lista de cargos do servidor.`,
           );
           return;
         }

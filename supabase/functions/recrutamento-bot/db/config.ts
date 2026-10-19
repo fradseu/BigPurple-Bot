@@ -51,6 +51,10 @@ export function definirCargoRecrutador(guildId: string, cargoId: string, quem: s
   return salvar(guildId, { cargo_recrutador_id: cargoId }, quem);
 }
 
+export function definirCargoMembro(guildId: string, cargoId: string, quem: string): Promise<ConfigRow> {
+  return salvar(guildId, { cargo_membro_id: cargoId }, quem);
+}
+
 export type TipoAutorizado = "usuario" | "cargo";
 
 // Sem duplicar: autorizar duas vezes o mesmo alvo não cria entrada repetida.

@@ -6,6 +6,7 @@ const config = (extra: Partial<ConfigRow> = {}): ConfigRow => ({
   guild_id: "1",
   canal_recrutadores_id: null,
   cargo_recrutador_id: null,
+  cargo_membro_id: null,
   autorizados_usuarios: [],
   autorizados_cargos: [],
   atualizado_por: null,
@@ -24,11 +25,13 @@ Deno.test("formatarStatus: mostra canal, cargo e autorizados como menções", ()
   const texto = formatarStatus(config({
     canal_recrutadores_id: "111",
     cargo_recrutador_id: "222",
+    cargo_membro_id: "666",
     autorizados_usuarios: ["333", "444"],
     autorizados_cargos: ["555"],
   }));
   assert(texto.includes("<#111>"));
   assert(texto.includes("<@&222>"));
+  assert(texto.includes("<@&666>")); // cargo de Membro
   assert(texto.includes("<@333>, <@444>"));
   assert(texto.includes("<@&555>"));
   assert(!texto.includes("Falta definir")); // canal definido = sem aviso

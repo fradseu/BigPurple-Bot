@@ -59,6 +59,12 @@ const comandos = [
       },
       {
         type: 1,
+        name: "membro",
+        description: "Cargo de Membro: quem for aprovado recebe esse cargo e o apelido do jogo.",
+        options: [{ type: 8, name: "cargo", description: "Cargo @Membro", required: true }],
+      },
+      {
+        type: 1,
         name: "autorizar",
         description: "Autoriza uma pessoa ou cargo a configurar o bot (só administrador).",
         options: [

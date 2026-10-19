@@ -107,6 +107,14 @@ export async function apagarCandidatura(id: string): Promise<void> {
   await obterClienteSupabase().from(TABELA).delete().eq("id", id);
 }
 
+export async function registrarApelidoAplicado(id: string, apelido: string): Promise<void> {
+  const { error } = await obterClienteSupabase()
+    .from(TABELA)
+    .update({ apelido_aplicado: apelido })
+    .eq("id", id);
+  if (error) throw new Error(`Erro ao registrar apelido aplicado: ${error.message}`);
+}
+
 export async function atualizarDossie(
   id: string,
   albionPlayerId: string | null,
