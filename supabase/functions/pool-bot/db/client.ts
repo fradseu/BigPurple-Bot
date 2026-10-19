@@ -99,6 +99,14 @@ export interface Database {
         Update: Partial<ConviteRow>;
         Relationships: [];
       };
+      // Tabela do bot de RECRUTAMENTO: o Pool só LÊ o cargo de Membro (quem tem esse cargo
+      // ganha caixa de convites).
+      recrutamento_config: {
+        Row: { guild_id: string; cargo_membro_id: string | null };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       pool_envios: {
         Row: EnvioRow;
         Insert: Pick<EnvioRow, "pt_mensagem_id" | "guild_id"> & Partial<EnvioRow>;

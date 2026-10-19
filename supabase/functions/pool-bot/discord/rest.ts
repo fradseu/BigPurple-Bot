@@ -119,3 +119,17 @@ export async function apagarMensagem(canalId: string, mensagemId: string): Promi
     if (!erroNaoEncontrado(err)) throw err;
   }
 }
+
+// Lista os membros do servidor (paginado: até 1000 por chamada, `depois` = último ID da
+// página anterior). Exige a permissão especial "Server Members Intent" LIGADA no Developer
+// Portal pro app do Pool — sem ela o Discord responde 403.
+export interface MembroDoServidor {
+  user: { id: string; bot?: boolean };
+  roles: string[];
+}
+
+export async function listarMembros(guildId: string, depois?: string): Promise<MembroDoServidor[]> {
+  const query = `limit=1000${depois ? `&after=${depois}` : ""}`;
+  const res = await discordFetch(`/guilds/${guildId}/members?${query}`);
+  return res.json();
+}

@@ -347,3 +347,31 @@ export async function devolverEnvio(ptMensagemId: string, anterior: EstadoEnvios
     .update({ tentativas: anterior.tentativas, ultimo_envio: new Date(anterior.ultimoEnvioMs).toISOString() })
     .eq("pt_mensagem_id", ptMensagemId);
 }
+
+// ----------------------------------------------- sincronização de caixas
+
+// Servidores onde o Pool já foi configurado (têm um canal do pool definido).
+export async function listarServidoresComPool(): Promise<Array<{ guildId: string; canalPoolId: string }>> {
+  const { data, error } = await db().from("pool_config").select("guild_id, canal_pool_id");
+  if (error) throw new Error(`Erro ao listar servidores do pool: ${error.message}`);
+  return (data ?? [])
+    .filter((c): c is { guild_id: string; canal_pool_id: string } => Boolean(c.canal_pool_id))
+    .map((c) => ({ guildId: c.guild_id, canalPoolId: c.canal_pool_id }));
+}
+
+// Cargo de Membro do servidor (configurado no recrutamento com /recrutamento-config membro).
+export async function obterCargoMembro(guildId: string): Promise<string | null> {
+  const { data, error } = await db()
+    .from("recrutamento_config")
+    .select("guild_id, cargo_membro_id")
+    .eq("guild_id", guildId)
+    .maybeSingle();
+  if (error) throw new Error(`Erro ao ler o cargo de Membro: ${error.message}`);
+  return data?.cargo_membro_id ?? null;
+}
+
+export async function listarUsuariosComCaixa(guildId: string): Promise<Set<string>> {
+  const { data, error } = await db().from("pool_caixas").select("user_id").eq("guild_id", guildId);
+  if (error) throw new Error(`Erro ao listar caixas: ${error.message}`);
+  return new Set((data ?? []).map((c) => c.user_id));
+}

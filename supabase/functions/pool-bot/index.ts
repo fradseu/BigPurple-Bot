@@ -21,6 +21,8 @@ import {
 import { expirarEAtualizarCaixas } from "./handlers/expiracao.ts";
 import { handleResponderConvite } from "./handlers/convite.ts";
 import { processarPedidoConvite } from "./handlers/convidar.ts";
+import { criarCaixaParaMembro, validarPedidoCriarCaixa } from "./handlers/criarCaixa.ts";
+import { sincronizarCaixas } from "./handlers/sincronizacao.ts";
 import { lerBotaoConvite, validarPedidoConvite } from "./domain/convite.ts";
 
 const PUBLIC_KEY = Deno.env.get("POOL_PUBLIC_KEY") ?? "";
@@ -90,6 +92,34 @@ Deno.serve(async (req: Request) => {
     } catch (err) {
       console.error("Erro na expiração:", err);
       return jsonResponse({ erro: "falha ao expirar" }, 500);
+    }
+  }
+
+  // Rota interna do bot de RECRUTAMENTO: alguém foi aprovado e já deve ter a caixa pronta.
+  // Mesmo segredo compartilhado entre as functions. Também repara uma caixa sem painel.
+  if (new URL(req.url).pathname.endsWith("/criar-caixa")) {
+    const esperado = Deno.env.get("PT_INTERNAL_SECRET") ?? "";
+    const recebido = req.headers.get("x-internal-secret") ?? "";
+    if (!esperado || !segredosIguais(esperado, recebido)) {
+      return new Response("unauthorized", { status: 401 });
+    }
+    const pedido = validarPedidoCriarCaixa(await req.json().catch(() => null));
+    if (!pedido) return jsonResponse({ ok: false, motivo: "pedido_invalido" }, 400);
+    return jsonResponse(await criarCaixaParaMembro(pedido.guildId, pedido.userId));
+  }
+
+  // Varredura periódica (pg_cron): cria a caixa de quem é Membro e ainda não tem.
+  if (new URL(req.url).pathname.endsWith("/sincronizar")) {
+    const esperado = Deno.env.get("POOL_CRON_SECRET") ?? "";
+    const recebido = req.headers.get("x-cron-secret") ?? "";
+    if (!esperado || !segredosIguais(esperado, recebido)) {
+      return new Response("unauthorized", { status: 401 });
+    }
+    try {
+      return jsonResponse(await sincronizarCaixas());
+    } catch (err) {
+      console.error("Erro na sincronização de caixas:", err);
+      return jsonResponse({ erro: "falha na sincronização" }, 500);
     }
   }
 

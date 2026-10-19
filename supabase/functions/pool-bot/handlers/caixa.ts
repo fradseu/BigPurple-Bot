@@ -1,11 +1,12 @@
 // caixa.ts - A caixa de entrada privada de cada pessoa: UM tópico privado fixo no
-// canal do pool, só com ela e o bot. Criada na primeira vez que a pessoa se
-// oferece (ou é convidada) — não em massa, então não precisa listar os membros
-// do servidor, e quem já estava e quem chegar depois ficam iguais.
+// canal do pool, só com ela e o bot. Quem tem o cargo de Membro ganha a caixa
+// automaticamente (na aprovação do recrutamento e pela varredura periódica — veja
+// prepararCaixa); se alguém ainda não tem e se cadastra/é convidado, ela é criada na hora.
 import {
   apagarCaixa,
   atualizarControleDaCaixa,
   criarCaixa,
+  obterAtiva,
   obterCaixa,
 } from "../db/pool.ts";
 import { CaixaRow, DisponibilidadeRow } from "../db/client.ts";
@@ -111,4 +112,30 @@ export async function atualizarControle(
     if (!erroNaoEncontrado(err)) throw err;
     await apagarCaixa(caixa.guild_id, caixa.user_id);
   }
+}
+
+// Garante que a pessoa TEM uma caixa e que a mensagem de controle dela existe. É o que
+// "ao entrar, a pessoa já ganha o espaço dela" usa: o recrutamento chama isso na aprovação
+// e a varredura chama pra quem ainda não tem.
+//   - sem caixa  -> cria (tópico privado + mensagem de controle)
+//   - com caixa  -> reescreve a mensagem de controle (recria se foi apagada)
+export async function prepararCaixa(
+  guildId: string,
+  userId: string,
+  canalPoolId: string,
+): Promise<{ caixa: CaixaRow; criada: boolean }> {
+  const existente = await obterCaixa(guildId, userId);
+  if (!existente) {
+    return { caixa: await garantirCaixa(guildId, userId, canalPoolId), criada: true };
+  }
+
+  const ativa = await obterAtiva(guildId, userId);
+  await atualizarControle(existente, ativa ? resumoDe(ativa) : null);
+
+  // Se o TÓPICO inteiro foi apagado (um moderador, ou a própria pessoa), atualizarControle
+  // esquece a caixa morta. Aí cria uma nova NA HORA — senão a pessoa ficaria sem caixa até a
+  // próxima ação ou varredura.
+  const aindaExiste = await obterCaixa(guildId, userId);
+  if (aindaExiste) return { caixa: aindaExiste, criada: false };
+  return { caixa: await garantirCaixa(guildId, userId, canalPoolId), criada: true };
 }

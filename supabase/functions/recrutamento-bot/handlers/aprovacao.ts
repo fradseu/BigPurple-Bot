@@ -2,6 +2,7 @@
 //   1. muda o apelido da pessoa pro nick do jogo (fica igual ao Albion, pra dar
 //      pra comparar depois se ela ainda está na guilda)
 //   2. dá o cargo de Membro (se configurado com /recrutamento-config membro)
+//   3. pede ao Pool a caixa de convites da pessoa (já entra com o espaço dela pronto)
 //
 // A decisão (aprovada) já foi gravada ANTES de chamar isso. Se algo falhar aqui
 // (permissão, hierarquia de cargos, pessoa que saiu do servidor), a aprovação
@@ -9,6 +10,7 @@
 import { CandidaturaRow, ConfigRow } from "../db/client.ts";
 import { registrarApelidoAplicado } from "../db/candidaturas.ts";
 import { adicionarCargo, definirApelido } from "../discord/rest.ts";
+import { criarCaixaNoPool, ResultadoCaixa } from "./poolBot.ts";
 import {
   apelidoParaMembro,
   nomeNoJogo,
@@ -19,6 +21,7 @@ export interface ResultadoAprovacao {
   apelido: string;
   apelidoAplicado: boolean;
   cargoAplicado: boolean | null; // null = cargo de Membro não configurado
+  caixa: ResultadoCaixa; // caixa de convites do Pool
   avisos: string[]; // o que o recrutador precisa saber / resolver
 }
 
@@ -67,11 +70,22 @@ export async function aplicarAprovacao(params: {
     avisos.push("O cargo de Membro não está configurado — use `/recrutamento-config membro` e dê o cargo manualmente.");
   }
 
-  return { apelido, apelidoAplicado, cargoAplicado, avisos };
+  // Caixa de convites do Pool: depois do cargo (é o Membro que enxerga o canal do pool).
+  // Servidor sem Pool não é erro. Se falhar, a varredura periódica do Pool cria depois.
+  const caixa = await criarCaixaNoPool(guildId, candidatura.discord_user_id);
+  if (caixa === "erro") {
+    avisos.push(
+      "Não consegui criar a caixa de convites do Pool agora. Ela é criada depois, na varredura automática do Pool.",
+    );
+  }
+
+  return { apelido, apelidoAplicado, cargoAplicado, caixa, avisos };
 }
 
 // Trecho que entra no rodapé da mensagem aprovada: o que de fato foi aplicado.
 export function resumoDaAplicacao(r: ResultadoAprovacao): string {
   const marca = (ok: boolean | null) => ok === null ? "—" : ok ? "✔" : "✖";
-  return `Apelido “${r.apelido}” ${marca(r.apelidoAplicado)} · Cargo Membro ${marca(r.cargoAplicado)}`;
+  const caixa = r.caixa === "sem_pool" ? null : r.caixa !== "erro";
+  return `Apelido “${r.apelido}” ${marca(r.apelidoAplicado)} · Cargo Membro ${marca(r.cargoAplicado)}` +
+    ` · Caixa do Pool ${marca(caixa)}`;
 }
