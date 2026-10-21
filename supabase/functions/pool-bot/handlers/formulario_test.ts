@@ -49,8 +49,8 @@ Deno.test("tela de escolher: a lista de atividades acompanha as áreas escolhida
   const todas = selects(montarFormulario(estadoInicial())).find((s) => s.custom_id === "pool_sel:atividades")!;
   const soFac = selects(montarFormulario(aplicarSelecao(estadoInicial(), "areas", ["FAC"])))
     .find((s) => s.custom_id === "pool_sel:atividades")!;
-  assertEquals(todas.options.length, 16);
-  assertEquals(soFac.options.map((o) => o.value).sort(), ["Aliança Guerra de Facção", "Guerra de Facção"]);
+  assertEquals(todas.options.length, 18);
+  assertEquals(soFac.options.map((o) => o.value).sort(), ["Aliança Guerra de Facção", "Guerra de Facção", "Warcamp"]);
 });
 
 Deno.test("escolhas voltam marcadas (default) ao redesenhar — senão a lista parece zerar", () => {

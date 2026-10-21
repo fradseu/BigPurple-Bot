@@ -13,6 +13,8 @@ export const ATIVIDADES: Opcao[] = [
   { label: "Caçada em Grupo", value: "Caçada" },
   { label: "Guerra de Facção", value: "Guerra de Facção" },
   { label: "Roaming / Gank", value: "Roaming/Gank" },
+  { label: "Warcamp", value: "Warcamp" },
+  { label: "Dragão (evento da temporada)", value: "Dragão" },
   { label: "Coleta na Black", value: "Coleta na Black" },
   { label: "Coleta na Avalon", value: "Coleta na Avalon" },
   { label: "Baú Azul", value: "Baús Azul" },
@@ -46,9 +48,9 @@ export const AREAS: Area[] = [
 // área (ex: Coleta na Black serve pra quem quer PVE e pra quem quer PVP).
 // AJUSTÁVEL: é só editar esta tabela — os valores são os de ATIVIDADES acima.
 export const ATIVIDADES_POR_AREA: Record<string, string[]> = {
-  PVE: ["DG Grupo", "DG Fixa", "Caçada", "Baús Azul", "Baús Dourado", "Apagas", "Spec de arma", "Coleta na Black", "Aliança DG", "Transporte para Caerleon"],
-  PVP: ["Roaming/Gank", "Aliança Zerg versus Zerg", "Coleta na Black", "Transporte para Caerleon"],
-  FAC: ["Guerra de Facção", "Aliança Guerra de Facção"],
+  PVE: ["DG Grupo", "DG Fixa", "Caçada", "Baús Azul", "Baús Dourado", "Apagas", "Spec de arma", "Coleta na Black", "Aliança DG", "Transporte para Caerleon", "Dragão"],
+  PVP: ["Roaming/Gank", "Aliança Zerg versus Zerg", "Coleta na Black", "Transporte para Caerleon", "Warcamp", "Dragão"],
+  FAC: ["Guerra de Facção", "Aliança Guerra de Facção", "Warcamp"],
   AVALON: ["Coleta na Avalon", "Aliança Avalon", "Aliança DG"],
 };
 

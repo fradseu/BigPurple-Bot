@@ -89,6 +89,8 @@ export const ATIVIDADES: OpcaoConfig[] = [
   { label: "Caçada em Grupo", value: "Caçada" },
   { label: "Guerra de Facção", value: "Guerra de Facção" },
   { label: "Roaming / Gank", value: "Roaming/Gank" },
+  { label: "Warcamp", value: "Warcamp" },
+  { label: "Dragão (evento da temporada)", value: "Dragão" },
   { label: "Coleta na Black", value: "Coleta na Black" },
   { label: "Coleta na Avalon", value: "Coleta na Avalon" },
   { label: "Baú Azul", value: "Baús Azul" },
@@ -151,6 +153,8 @@ export const DIFICULDADES_VALUE: DificuldadeValor[] = [
   { label: "Transporte para Caerleon", value: 0.55 }, // Carga valiosa, lento, alvo primário de gank
   { label: "Baús Dourado", value: 0.85 }, // Alto valor em black zone, disputado
   { label: "Roaming/Gank", value: 0.75 }, // Busca ativa por PvP, alto risco por natureza
+  { label: "Warcamp", value: 0.5 }, // ESTIMATIVA: PvP de facção em área disputada (ajuste se achar mais/menos perigoso)
+  { label: "Dragão", value: 0.7 }, // ESTIMATIVA: evento da temporada em open world, concorrido (ajuste conforme a experiência)
   { label: "Aliança Guerra de Facção", value: 0.75 }, // Guerra em larga escala, muita gente e valor em jogo
   { label: "Coleta na Avalon", value: 0.85 }, // Exposto e sem rota fácil de fuga
   { label: "Aliança Avalon", value: 0.9 }, // Operação de alto valor na região mais punitiva

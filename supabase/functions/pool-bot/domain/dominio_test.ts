@@ -80,7 +80,7 @@ Deno.test("atividadesDasAreas: união sem repetir, na ordem do criador de conte�
   assertEquals(new Set(nomes).size, nomes.length); // sem repetidos
   assert(nomes.includes("DG Grupo") && nomes.includes("Roaming/Gank"));
   assert(!nomes.includes("Guerra de Facção"));
-  assertEquals(atividadesDasAreas([]).length, 16); // sem área = todas
+  assertEquals(atividadesDasAreas([]).length, 18); // sem área = todas
 });
 
 Deno.test("config: toda atividade de ATIVIDADES_POR_AREA existe na lista do criador", () => {
