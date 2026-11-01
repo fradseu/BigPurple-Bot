@@ -139,6 +139,50 @@ interna `POST /expirar` é chamada por um job do pg_cron com o header
 `x-cron-secret`; o job é criado direto no banco, não em migration, pra o segredo
 não ir pro Git). Tabelas: `0007_pool.sql`.
 
+## Killboard da guilda (dentro do `discord-bot`)
+
+Posta num canal as **kills, mortes e assistências** dos membros da guilda no Albion que tenham o
+cargo **Membro** no Discord, e mantém um **ranking dos últimos 30 dias**.
+
+- **Quem entra:** jogadores aprovados pelo bot de recrutamento (é lá que fica o vínculo
+  Discord ↔ Albion, `recrutamento_candidaturas.albion_player_id`) e que ainda têm o cargo.
+  Quem entrou sem passar pelo recrutamento não aparece.
+- **Como roda:** não há processo ligado. Um job do pg_cron chama `POST /internal/killboard` a cada
+  5 min; a function lê `/events?guildId=...` na API do Albion, posta o que é novo e encerra.
+  Cada evento sai uma vez só (`killboard_postados`, guardado por 30 dias).
+- **Classificação:** matador é Membro → ⚔️ kill (Membros que causaram dano/cura entram como
+  assistência); vítima é Membro → 💀 morte; senão, Membro causou dano/cura → 🤝 assistência.
+- **Comandos:** `/killboard ativar canal:#canal [cargo:@Membro]`, `/killboard desativar`,
+  `/killboard status` (só quem pode Gerenciar servidor) e `/killboard ranking` (todos).
+  Sem `cargo:`, usa o cargo de Membro configurado no recrutamento.
+
+```
+supabase/functions/discord-bot/
+  albion/eventos.ts       — eventos da guilda na API do Albion
+  domain/killboard.ts     — classificação, embeds e ranking (testado em killboard_test.ts)
+  db/killboard.ts         — killboard_config, killboard_postados, vínculos do recrutamento
+  handlers/killboard.ts   — rodada do agendador + /killboard
+supabase/migrations/0014_killboard.sql
+```
+
+Ativação (uma vez):
+
+```bash
+npx supabase secrets set KILLBOARD_CRON_SECRET=<um segredo longo>
+deno run --allow-net --allow-env --env-file=.env scripts/registerCommands.ts
+```
+
+E o job, criado direto no SQL Editor (fora das migrations, pra o segredo não ir pro Git):
+
+```sql
+select cron.schedule('killboard', '*/5 * * * *', $$
+  select net.http_post(
+    url := 'https://qroosefyfxefjrlhogrh.supabase.co/functions/v1/discord-bot/internal/killboard',
+    headers := '{"x-cron-secret": "<o mesmo segredo>"}'::jsonb
+  );
+$$);
+```
+
 ## Plano completo
 
 O plano de arquitetura e decisões tomadas está registrado em

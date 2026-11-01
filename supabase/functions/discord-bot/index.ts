@@ -20,6 +20,7 @@ import {
 import { HandlerResult } from "./handlers/context.ts";
 import { handleComandoConteudo } from "./handlers/comandoConteudo.ts";
 import { handleTermos } from "./handlers/termos.ts";
+import { handleComandoKillboard, rodarKillboard } from "./handlers/killboard.ts";
 // /diagnostico desativado por enquanto (deixa comentado, não apagado).
 // import { handleDiagnostico } from "./handlers/diagnostico.ts";
 import {
@@ -99,6 +100,8 @@ async function rotear(interaction: DiscordInteraction): Promise<HandlerResult> {
         return await handleComandoConteudo(interaction);
       case "termos":
         return handleTermos();
+      case "killboard":
+        return handleComandoKillboard(interaction);
       // case "diagnostico":
       //   return await handleDiagnostico(interaction);
       default:
@@ -225,6 +228,23 @@ Deno.serve(async (req: Request) => {
       console.error("Erro ao preencher vaga a pedido do pool:", err);
       return jsonResponse({ ok: false, motivo: "erro" }, 500);
     }
+  }
+
+  // Rota INTERNA do killboard: chamada pelo pg_cron a cada 5 min. Responde na hora (202) e
+  // trabalha em segundo plano, porque a API do Albion pode demorar.
+  if (new URL(req.url).pathname.endsWith("/internal/killboard")) {
+    const esperado = Deno.env.get("KILLBOARD_CRON_SECRET") ?? "";
+    const recebido = req.headers.get("x-cron-secret") ?? "";
+    if (!esperado || !segredosIguais(esperado, recebido)) {
+      return new Response("unauthorized", { status: 401 });
+    }
+    const trabalho = rodarKillboard()
+      .then((r) => console.log("Killboard:", JSON.stringify(r)))
+      .catch((err) => console.error("Erro no killboard:", err));
+    // deno-lint-ignore no-explicit-any
+    const waitUntil = (globalThis as any).EdgeRuntime?.waitUntil;
+    if (waitUntil) waitUntil(trabalho);
+    return jsonResponse({ iniciado: true }, 202);
   }
 
   const signature = req.headers.get("x-signature-ed25519");

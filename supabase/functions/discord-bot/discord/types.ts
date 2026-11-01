@@ -101,9 +101,13 @@ export function actionRow(...components: ActionRowChild[]): ActionRowComponent {
 
 export interface DiscordEmbed {
   title?: string;
+  url?: string;
   description?: string;
   color?: number;
   image?: { url: string };
+  thumbnail?: { url: string };
+  fields?: Array<{ name: string; value: string; inline?: boolean }>;
+  timestamp?: string;
   footer?: { text: string; icon_url?: string };
 }
 
@@ -133,7 +137,7 @@ export interface DiscordInteraction {
   channel_id?: string;
   // Canal onde a interação aconteceu. Quando é um tópico (PT), `parent_id` é o canal de ping.
   channel?: { id: string; parent_id?: string | null };
-  member?: { user: DiscordUser; nick?: string | null };
+  member?: { user: DiscordUser; nick?: string | null; roles?: string[]; permissions?: string };
   user?: DiscordUser;
   data?: {
     id?: string;
@@ -141,6 +145,13 @@ export interface DiscordInteraction {
     custom_id?: string;
     component_type?: ComponentType;
     values?: string[];
+    // Opções de slash command (subcomandos ficam aninhados em `options`).
+    options?: Array<{
+      name: string;
+      type: number;
+      value?: string | number | boolean;
+      options?: Array<{ name: string; type: number; value?: string | number | boolean }>;
+    }>;
     components?: Array<{
       type: ComponentType;
       components: Array<{ type: ComponentType; custom_id: string; value: string }>;
