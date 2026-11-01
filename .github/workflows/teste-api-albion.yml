@@ -1,0 +1,17 @@
+name: Teste API Albion (temporário)
+on:
+  push:
+    branches: [teste/api-albion]
+jobs:
+  testar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar a API oficial (Américas)
+        run: |
+          for url in \
+            "https://gameinfo.albiononline.com/api/gameinfo/search?q=FelipePikito" \
+            "https://gameinfo.albiononline.com/api/gameinfo/events?limit=5&offset=0&guildId=omaLtnXoRS2RZeKVty6pvw"; do
+            echo "== $url"
+            curl -s -o /tmp/r -w "HTTP %{http_code}\n" -A "Mozilla/5.0" "$url"
+            head -c 300 /tmp/r; echo
+          done
