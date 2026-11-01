@@ -10,7 +10,7 @@ import {
   montarEmbedRanking,
   montarRanking,
   podeConfigurar,
-} from "./killboard.ts";
+} from "./dominio.ts";
 
 function evento(over: Partial<EventoAlbion> = {}): EventoAlbion {
   return {

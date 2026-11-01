@@ -1,7 +1,7 @@
-// killboard.ts - Acesso ao banco do killboard. Usa um cliente sem tipagem de schema (as tabelas
+// db.ts - Acesso ao banco do killboard. Usa um cliente sem tipagem de schema (as tabelas
 // do recrutamento e do retrato da guilda são de outras functions e não estão no Database deste bot).
 import { createClient } from "@supabase/supabase-js";
-import { LinhaRanking, TipoEvento } from "../domain/killboard.ts";
+import { LinhaRanking, TipoEvento } from "./dominio.ts";
 
 export interface ConfigKillboard {
   guild_id: string;

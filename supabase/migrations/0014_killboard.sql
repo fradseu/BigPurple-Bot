@@ -5,7 +5,7 @@
 -- recrutamento (recrutamento_candidaturas.albion_player_id). Quem não passou pelo recrutamento
 -- não aparece no killboard.
 --
--- Quem escreve: a Edge Function discord-bot (service role), chamada por um job do pg_cron a cada
+-- Quem escreve: a Edge Function `killboard` (service role), chamada por um job do pg_cron a cada
 -- 5 min. O segredo das rotas internas é gerado AQUI, no próprio banco (bot_segredos), e lido em
 -- tempo de execução pelo job e pela function — nunca vai pro Git nem precisa ser digitado.
 
@@ -50,7 +50,7 @@ alter table public.killboard_postados enable row level security;
 grant select, insert, update, delete on public.killboard_config to service_role;
 grant select, insert, update, delete on public.killboard_postados to service_role;
 
--- Segredos internos (só service role). 'interno' protege as rotas /internal/* do discord-bot.
+-- Segredos internos (só service role). 'interno' protege as rotas /internal/* das functions killboard e discord-bot.
 create table if not exists public.bot_segredos (
   nome text primary key,
   valor text not null,
@@ -69,7 +69,21 @@ select cron.schedule(
   '*/5 * * * *',
   $$
     select net.http_post(
-      url := 'https://qroosefyfxefjrlhogrh.supabase.co/functions/v1/discord-bot/internal/killboard',
+      url := 'https://qroosefyfxefjrlhogrh.supabase.co/functions/v1/killboard/internal/killboard',
+      headers := jsonb_build_object(
+        'x-cron-secret', (select valor from public.bot_segredos where nome = 'interno')
+      )
+    );
+  $$
+);
+
+-- Ranking dos últimos 30 dias no canal do killboard, toda segunda às 12:00 de Brasília.
+select cron.schedule(
+  'killboard-ranking-semanal',
+  '0 15 * * 1',
+  $$
+    select net.http_post(
+      url := 'https://qroosefyfxefjrlhogrh.supabase.co/functions/v1/killboard/internal/ranking',
       headers := jsonb_build_object(
         'x-cron-secret', (select valor from public.bot_segredos where nome = 'interno')
       )

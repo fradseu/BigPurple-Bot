@@ -139,44 +139,46 @@ interna `POST /expirar` é chamada por um job do pg_cron com o header
 `x-cron-secret`; o job é criado direto no banco, não em migration, pra o segredo
 não ir pro Git). Tabelas: `0007_pool.sql`.
 
-## Killboard da guilda (dentro do `discord-bot`)
+## Killboard da guilda (function `killboard` + comando no `discord-bot`)
 
 Posta num canal as **kills, mortes e assistências** dos membros da guilda no Albion que tenham o
-cargo **Membro** no Discord, e mantém um **ranking dos últimos 30 dias**.
+cargo **Membro** no Discord, e o **top 10 dos últimos 30 dias** toda segunda às 12:00.
 
 - **Quem entra:** jogadores aprovados pelo bot de recrutamento (é lá que fica o vínculo
   Discord ↔ Albion, `recrutamento_candidaturas.albion_player_id`) e que ainda têm o cargo.
   Quem entrou sem passar pelo recrutamento não aparece.
-- **Como roda:** não há processo ligado. Um job do pg_cron chama `POST /internal/killboard` a cada
-  5 min; a function lê `/events?guildId=...` na API do Albion, posta o que é novo e encerra.
-  Cada evento sai uma vez só (`killboard_postados`, guardado por 30 dias).
+- **Como roda:** não há processo ligado. O pg_cron chama a function `killboard` a cada 5 min;
+  ela lê `/events?guildId=...` na API do Albion, posta o que é novo e encerra. Cada evento sai
+  uma vez só (`killboard_postados`, guardado por 30 dias).
 - **Classificação:** matador é Membro → ⚔️ kill (Membros que causaram dano/cura entram como
   assistência); vítima é Membro → 💀 morte; senão, Membro causou dano/cura → 🤝 assistência.
-- **Comandos:** `/killboard ativar canal:#canal [cargo:@Membro]`, `/killboard desativar`,
-  `/killboard status` (só quem pode Gerenciar servidor) e `/killboard ranking` (todos).
-  Sem `cargo:`, usa o cargo de Membro configurado no recrutamento.
+- **Comandos (discord-bot):** `/killboard ativar canal:#canal [cargo:@Membro]`, `desativar`,
+  `status` (só quem pode Gerenciar servidor) e `/killboard ranking` (todos).
+- **Segredo interno:** gerado pela própria migration em `public.bot_segredos` (só service role)
+  e lido pelo pg_cron e pelas functions. Nada de secret manual nem segredo no Git.
 
 ```
-supabase/functions/discord-bot/
-  albion/eventos.ts       — eventos da guilda na API do Albion
-  domain/killboard.ts     — classificação, embeds e ranking (testado em killboard_test.ts)
-  db/killboard.ts         — killboard_config, killboard_postados, vínculos do recrutamento
-  handlers/killboard.ts   — rodada do agendador + /killboard
-supabase/migrations/0014_killboard.sql
+supabase/functions/_shared/killboard/
+  dominio.ts   — classificação, embeds e ranking (testado em dominio_test.ts)
+  db.ts        — killboard_config, killboard_postados, vínculos do recrutamento
+  albion.ts    — eventos da guilda na API do Albion
+  discord.ts   — postar embed, cargos do membro
+  rodada.ts    — rodada de 5 min, ranking semanal, estrutura do servidor
+  segredo.ts   — segredo interno
+supabase/functions/killboard/index.ts          — rotas /internal/killboard | ranking | estrutura
+supabase/functions/discord-bot/handlers/killboard.ts — comando /killboard
+supabase/migrations/0014_killboard.sql         — tabelas, segredo e jobs do pg_cron
 ```
 
-Ativação: a migration já cria o job do pg_cron e gera o segredo interno em `public.bot_segredos`
-(sem secret manual). Depois do deploy, os comandos podem ser registrados sem computador:
+Manutenção sem computador (SQL Editor do Supabase):
 
 ```sql
+-- registrar os slash commands do discord-bot (inclusive /killboard)
 select net.http_post(
   url := 'https://qroosefyfxefjrlhogrh.supabase.co/functions/v1/discord-bot/internal/registrar-comandos',
   headers := jsonb_build_object('x-cron-secret', (select valor from public.bot_segredos where nome = 'interno'))
 );
 ```
-
-A rota `/internal/estrutura` (corpo `{"guild_id": "..."}`) devolve categorias, canais e cargos do
-servidor, só leitura.
 
 ## Plano completo
 

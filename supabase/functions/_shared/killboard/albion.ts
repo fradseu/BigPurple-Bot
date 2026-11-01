@@ -1,6 +1,6 @@
-// eventos.ts - Lê os eventos recentes (kills/mortes) de uma guilda na API oficial do Albion
+// albion.ts - Lê os eventos recentes (kills/mortes) de uma guilda na API oficial do Albion
 // (gameinfo, servidor das Américas). A API é lenta e às vezes cai: tempo limite + novas tentativas.
-import { EventoAlbion } from "../domain/killboard.ts";
+import { EventoAlbion } from "./dominio.ts";
 
 const BASE = "https://gameinfo.albiononline.com/api/gameinfo";
 const TEMPO_LIMITE_MS = 20_000;

@@ -20,8 +20,8 @@ import {
 import { HandlerResult } from "./handlers/context.ts";
 import { handleComandoConteudo } from "./handlers/comandoConteudo.ts";
 import { handleTermos } from "./handlers/termos.ts";
-import { handleComandoKillboard, rodarKillboard } from "./handlers/killboard.ts";
-import { estruturaDoServidor, registrarComandos, segredoInterno } from "./handlers/interno.ts";
+import { handleComandoKillboard } from "./handlers/killboard.ts";
+import { registrarComandos, segredoInterno } from "./handlers/interno.ts";
 // /diagnostico desativado por enquanto (deixa comentado, não apagado).
 // import { handleDiagnostico } from "./handlers/diagnostico.ts";
 import {
@@ -231,33 +231,15 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  // Rotas INTERNAS (agendador e manutenção). Protegidas pelo segredo interno: KILLBOARD_CRON_SECRET
-  // nos secrets da function ou, se não houver, a linha 'interno' de public.bot_segredos.
-  const caminho = new URL(req.url).pathname;
-  if (/\/internal\/(killboard|registrar-comandos|estrutura)$/.test(caminho)) {
+  // Rota INTERNA de manutenção: registra os slash commands (inclusive /killboard) sem computador.
+  // Protegida pelo segredo interno (KILLBOARD_CRON_SECRET ou public.bot_segredos 'interno').
+  if (new URL(req.url).pathname.endsWith("/internal/registrar-comandos")) {
     const esperado = await segredoInterno();
-    const recebido = req.headers.get("x-cron-secret") ?? "";
-    if (!esperado || !segredosIguais(esperado, recebido)) {
+    if (!esperado || !segredosIguais(esperado, req.headers.get("x-cron-secret") ?? "")) {
       return new Response("unauthorized", { status: 401 });
     }
-
-    // Killboard: chamado pelo pg_cron a cada 5 min. Responde na hora (202) e trabalha em segundo
-    // plano, porque a API do Albion pode demorar.
-    if (caminho.endsWith("/killboard")) {
-      const trabalho = rodarKillboard()
-        .then((r) => console.log("Killboard:", JSON.stringify(r)))
-        .catch((err) => console.error("Erro no killboard:", err));
-      // deno-lint-ignore no-explicit-any
-      const waitUntil = (globalThis as any).EdgeRuntime?.waitUntil;
-      if (waitUntil) waitUntil(trabalho);
-      return jsonResponse({ iniciado: true }, 202);
-    }
-
     try {
-      if (caminho.endsWith("/registrar-comandos")) return jsonResponse(await registrarComandos());
-      const corpo = await req.json().catch(() => ({})) as { guild_id?: string };
-      if (!corpo.guild_id) return jsonResponse({ erro: "guild_id obrigatório" }, 400);
-      return jsonResponse(await estruturaDoServidor(corpo.guild_id));
+      return jsonResponse(await registrarComandos());
     } catch (err) {
       return jsonResponse({ erro: err instanceof Error ? err.message : String(err) }, 500);
     }

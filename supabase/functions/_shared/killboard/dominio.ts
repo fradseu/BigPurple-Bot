@@ -1,6 +1,16 @@
-// killboard.ts - Regras puras do killboard (sem rede, sem banco): decidir se um evento do Albion
-// interessa, se é kill, morte ou assistência, e montar o embed. Testado em killboard_test.ts.
-import { DiscordEmbed } from "../discord/types.ts";
+// dominio.ts - Regras puras do killboard (sem rede, sem banco): decidir se um evento do Albion
+// interessa, se é kill, morte ou assistência, e montar o embed. Testado em dominio_test.ts.
+// Embed no formato da API do Discord (compatível com o DiscordEmbed do discord-bot).
+export interface DiscordEmbed {
+  title?: string;
+  url?: string;
+  description?: string;
+  color?: number;
+  thumbnail?: { url: string };
+  fields?: Array<{ name: string; value: string; inline?: boolean }>;
+  timestamp?: string;
+  footer?: { text: string };
+}
 
 // Só o que usamos de um evento de /events. Todo campo opcional pode faltar.
 export interface JogadorEvento {
