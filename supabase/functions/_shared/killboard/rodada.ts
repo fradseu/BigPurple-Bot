@@ -6,13 +6,13 @@ import {
   cargoMembroDoRecrutamento,
   ConfigKillboard,
   eventosJaPostados,
-  guildaAlbionPadrao,
+  guildaAlbion,
   lerConfigsAtivas,
   postadosRecentes,
   registrarPostado,
   vinculosAprovados,
 } from "./db.ts";
-import { cargosDoMembro, discord, postarEmbed } from "./discord.ts";
+import { cargosDoMembro, discord, membroPeloNome, postarEmbed } from "./discord.ts";
 import {
   Acompanhados,
   classificarEvento,
@@ -40,24 +40,37 @@ export interface ResultadoKillboard {
 }
 
 async function rodarServidor(cfg: ConfigKillboard): Promise<ResultadoKillboard> {
-  const albionGuildId = cfg.albion_guild_id ?? await guildaAlbionPadrao();
-  if (!albionGuildId) return { guild_id: cfg.guild_id, erro: "nenhuma guilda do Albion cadastrada" };
+  const guilda = await guildaAlbion(cfg.albion_guild_id);
+  if (!guilda) return { guild_id: cfg.guild_id, erro: "nenhuma guilda do Albion cadastrada" };
 
   const cargo = cfg.cargo_membro_id ?? await cargoMembroDoRecrutamento(cfg.guild_id);
   if (!cargo) return { guild_id: cfg.guild_id, erro: "cargo de Membro não definido" };
 
+  // Vínculo Discord <-> Albion: 1º o do recrutamento; quem não tiver, pelo apelido (abaixo).
   const vinculos = await vinculosAprovados(cfg.guild_id);
-  if (vinculos.size === 0) return { guild_id: cfg.guild_id, eventos_lidos: 0, postados: 0 };
 
-  const eventos = await buscarEventosDaGuilda(albionGuildId);
+  const eventos = await buscarEventosDaGuilda(guilda.id);
   const desde = new Date(Math.max(new Date(cfg.ativado_em).getTime(), Date.now() - JANELA_MAXIMA_MS));
   const jaPostados = await eventosJaPostados(cfg.guild_id, eventos.map((e) => e.EventId));
   const candidatos = eventosParaPostar(eventos, jaPostados, desde, eventos.length);
 
-  // Confere o cargo só de quem aparece em algum evento novo (uma consulta por pessoa).
+  // Confere o cargo só de quem aparece em algum evento novo (uma consulta por pessoa). Jogador da
+  // guilda sem vínculo do recrutamento: procura no Discord alguém com o mesmo nome do jogo.
   const temCargo = new Map<string, boolean>();
+  const procurados = new Set<string>();
   const acompanhados: Acompanhados = new Map();
+  const daGuilda = guilda.nome.toLowerCase();
   for (const evento of candidatos) {
+    const envolvidos = [evento.Killer, evento.Victim, ...(evento.Participants ?? [])];
+    for (const j of envolvidos) {
+      if (vinculos.has(j.Id) || procurados.has(j.Id) || j.GuildName?.toLowerCase() !== daGuilda) continue;
+      procurados.add(j.Id);
+      const achado = await membroPeloNome(cfg.guild_id, j.Name);
+      if (achado) {
+        vinculos.set(j.Id, achado.id);
+        temCargo.set(achado.id, achado.roles.includes(cargo));
+      }
+    }
     for (const playerId of jogadoresDoEvento(evento)) {
       const discordId = vinculos.get(playerId);
       if (!discordId || acompanhados.has(playerId)) continue;

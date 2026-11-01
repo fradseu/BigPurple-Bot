@@ -434,3 +434,7 @@ enabled = true
 [functions.killboard]
 # Não é bot do Discord: só rotas internas (pg_cron), protegidas pelo segredo interno.
 verify_jwt = false
+
+[functions.discord-setup]
+# Manutenção pontual do servidor (rota interna protegida pelo segredo interno).
+verify_jwt = false

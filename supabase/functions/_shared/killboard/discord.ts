@@ -11,7 +11,8 @@ export async function discord<T>(caminho: string, init: RequestInit = {}): Promi
     headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
   });
   if (!res.ok) throw new Error(`Discord ${init.method ?? "GET"} ${caminho} -> ${res.status}: ${await res.text()}`);
-  return await res.json() as T;
+  // 204 (sem corpo) em PATCH/DELETE.
+  return (res.status === 204 ? null : await res.json()) as T;
 }
 
 export function postarEmbed(canalId: string, embed: DiscordEmbed): Promise<{ id: string }> {
@@ -27,6 +28,32 @@ export async function cargosDoMembro(guildId: string, userId: string): Promise<s
   try {
     const m = await discord<{ roles: string[] }>(`/guilds/${guildId}/members/${userId}`);
     return m.roles;
+  } catch {
+    return null;
+  }
+}
+
+interface MembroBusca {
+  user: { id: string; username: string; global_name?: string | null };
+  nick?: string | null;
+  roles: string[];
+}
+
+// Procura no servidor quem usa exatamente `nome` (do jogo) como apelido, nome global ou usuário,
+// sem diferenciar maiúsculas. O recrutamento já define o apelido igual ao nome do jogo.
+export async function membroPeloNome(
+  guildId: string,
+  nome: string,
+): Promise<{ id: string; roles: string[] } | null> {
+  const alvo = nome.trim().toLowerCase();
+  try {
+    const achados = await discord<MembroBusca[]>(
+      `/guilds/${guildId}/members/search?query=${encodeURIComponent(nome)}&limit=10`,
+    );
+    const m = achados.find((x) =>
+      [x.nick, x.user.global_name, x.user.username].some((n) => n?.trim().toLowerCase() === alvo)
+    );
+    return m ? { id: m.user.id, roles: m.roles } : null;
   } catch {
     return null;
   }

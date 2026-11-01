@@ -67,10 +67,13 @@ export async function cargoMembroDoRecrutamento(guildId: string): Promise<string
   return (data as { cargo_membro_id: string | null } | null)?.cargo_membro_id ?? null;
 }
 
-// Guilda do Albion acompanhada (a primeira cadastrada no retrato diário).
-export async function guildaAlbionPadrao(): Promise<string | null> {
-  const { data } = await db().from("guilda_albion").select("albion_guild_id").limit(1).maybeSingle();
-  return (data as { albion_guild_id: string } | null)?.albion_guild_id ?? null;
+// Guilda do Albion: a configurada ou, se nenhuma, a primeira cadastrada no retrato diário.
+export async function guildaAlbion(id: string | null): Promise<{ id: string; nome: string } | null> {
+  let q = db().from("guilda_albion").select("albion_guild_id, nome");
+  if (id) q = q.eq("albion_guild_id", id);
+  const { data } = await q.limit(1).maybeSingle();
+  const g = data as { albion_guild_id: string; nome: string } | null;
+  return g ? { id: g.albion_guild_id, nome: g.nome } : null;
 }
 
 // player_id do Albion -> discord_user_id, das candidaturas aprovadas neste servidor.
