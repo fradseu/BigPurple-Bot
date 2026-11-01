@@ -43,8 +43,7 @@ begin
 end;
 $$;
 
-drop trigger if exists recrutamento_completar_albion_id on public.recrutamento_candidaturas;
-create trigger recrutamento_completar_albion_id
+create or replace trigger recrutamento_completar_albion_id
   before insert or update on public.recrutamento_candidaturas
   for each row execute function public.recrutamento_completar_albion_id();
 
@@ -70,8 +69,7 @@ begin
 end;
 $$;
 
-drop trigger if exists recrutamento_gravar_vinculo on public.recrutamento_candidaturas;
-create trigger recrutamento_gravar_vinculo
+create or replace trigger recrutamento_gravar_vinculo
   after insert or update on public.recrutamento_candidaturas
   for each row execute function public.recrutamento_gravar_vinculo();
 
@@ -94,16 +92,6 @@ begin
 end;
 $$;
 
-drop trigger if exists guilda_membro_completar_candidaturas on public.guilda_membros;
-create trigger guilda_membro_completar_candidaturas
+create or replace trigger guilda_membro_completar_candidaturas
   after insert or update on public.guilda_membros
   for each row execute function public.guilda_membro_completar_candidaturas();
-
--- Ninguém de fora chama essas funções direto.
-revoke all on function public.recrutamento_completar_albion_id() from public, anon, authenticated;
-revoke all on function public.recrutamento_gravar_vinculo() from public, anon, authenticated;
-revoke all on function public.guilda_membro_completar_candidaturas() from public, anon, authenticated;
-
--- Retroativo: aprovadas que ficaram sem id (o update dispara os gatilhos acima).
-update public.recrutamento_candidaturas set status = status
- where status = 'aprovada';
