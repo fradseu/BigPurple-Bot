@@ -165,23 +165,18 @@ supabase/functions/discord-bot/
 supabase/migrations/0014_killboard.sql
 ```
 
-Ativação (uma vez):
-
-```bash
-npx supabase secrets set KILLBOARD_CRON_SECRET=<um segredo longo>
-deno run --allow-net --allow-env --env-file=.env scripts/registerCommands.ts
-```
-
-E o job, criado direto no SQL Editor (fora das migrations, pra o segredo não ir pro Git):
+Ativação: a migration já cria o job do pg_cron e gera o segredo interno em `public.bot_segredos`
+(sem secret manual). Depois do deploy, os comandos podem ser registrados sem computador:
 
 ```sql
-select cron.schedule('killboard', '*/5 * * * *', $$
-  select net.http_post(
-    url := 'https://qroosefyfxefjrlhogrh.supabase.co/functions/v1/discord-bot/internal/killboard',
-    headers := '{"x-cron-secret": "<o mesmo segredo>"}'::jsonb
-  );
-$$);
+select net.http_post(
+  url := 'https://qroosefyfxefjrlhogrh.supabase.co/functions/v1/discord-bot/internal/registrar-comandos',
+  headers := jsonb_build_object('x-cron-secret', (select valor from public.bot_segredos where nome = 'interno'))
+);
 ```
+
+A rota `/internal/estrutura` (corpo `{"guild_id": "..."}`) devolve categorias, canais e cargos do
+servidor, só leitura.
 
 ## Plano completo
 

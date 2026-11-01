@@ -5,9 +5,9 @@
 -- recrutamento (recrutamento_candidaturas.albion_player_id). Quem não passou pelo recrutamento
 -- não aparece no killboard.
 --
--- Quem escreve: a Edge Function discord-bot (service role), chamada por um job do pg_cron.
--- O job NÃO fica aqui (leva o segredo KILLBOARD_CRON_SECRET) — é criado direto no banco; veja
--- o README.
+-- Quem escreve: a Edge Function discord-bot (service role), chamada por um job do pg_cron a cada
+-- 5 min. O segredo das rotas internas é gerado AQUI, no próprio banco (bot_segredos), e lido em
+-- tempo de execução pelo job e pela function — nunca vai pro Git nem precisa ser digitado.
 
 -- Configuração por servidor do Discord (definida com /killboard ativar).
 create table if not exists public.killboard_config (
@@ -49,6 +49,33 @@ alter table public.killboard_postados enable row level security;
 
 grant select, insert, update, delete on public.killboard_config to service_role;
 grant select, insert, update, delete on public.killboard_postados to service_role;
+
+-- Segredos internos (só service role). 'interno' protege as rotas /internal/* do discord-bot.
+create table if not exists public.bot_segredos (
+  nome text primary key,
+  valor text not null,
+  criado_em timestamptz not null default now()
+);
+alter table public.bot_segredos enable row level security;
+grant select on public.bot_segredos to service_role;
+
+insert into public.bot_segredos (nome, valor)
+values ('interno', encode(extensions.gen_random_bytes(32), 'hex'))
+on conflict (nome) do nothing;
+
+-- Rodada do killboard a cada 5 minutos.
+select cron.schedule(
+  'killboard',
+  '*/5 * * * *',
+  $$
+    select net.http_post(
+      url := 'https://qroosefyfxefjrlhogrh.supabase.co/functions/v1/discord-bot/internal/killboard',
+      headers := jsonb_build_object(
+        'x-cron-secret', (select valor from public.bot_segredos where nome = 'interno')
+      )
+    );
+  $$
+);
 
 -- Limpeza: o registro de postados só precisa cobrir o que a API do Albion ainda devolve.
 select cron.schedule(
