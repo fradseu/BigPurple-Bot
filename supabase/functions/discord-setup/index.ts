@@ -2,6 +2,8 @@
 //   POST /internal/secao-ferramentas  {"guild_id"} — cria (se não existir) a categoria
 //   "🟣Ferramentas Big Purple" logo abaixo de "🟣geral", só para o cargo Membro, com o canal
 //   "⚔️・killboard" (Membros só leem; o bot posta). Devolve os ids.
+//   POST /internal/membros  {"guild_id", "nomes"?} — membros do servidor (id, nomes, cargos), só
+//   leitura. Tenta a listagem completa; se o bot não tiver a intent de membros, busca nome por nome.
 // Protegida pelo segredo interno (public.bot_segredos 'interno').
 import { discord } from "../_shared/killboard/discord.ts";
 import { segredoInterno, segredosIguais } from "../_shared/killboard/segredo.ts";
@@ -68,8 +70,52 @@ async function secaoFerramentas(guildId: string) {
   return { categoria_id: categoria.id, canal_id: canal.id, cargo_membro_id: membro.id };
 }
 
+interface Membro {
+  user: { id: string; username: string; global_name?: string | null; bot?: boolean };
+  nick?: string | null;
+  roles: string[];
+}
+
+async function membros(guildId: string, nomes: string[]) {
+  const enxuto = (m: Membro) => ({
+    id: m.user.id,
+    usuario: m.user.username,
+    nome_global: m.user.global_name ?? null,
+    apelido: m.nick ?? null,
+    cargos: m.roles,
+    bot: m.user.bot ?? false,
+  });
+  try {
+    const todos = await discord<Membro[]>(`/guilds/${guildId}/members?limit=1000`);
+    return { origem: "listagem", membros: todos.map(enxuto) };
+  } catch (err) {
+    // Sem a intent "Server Members": busca pelos 3 primeiros caracteres de cada nome.
+    const vistos = new Map<string, ReturnType<typeof enxuto>>();
+    for (const nome of nomes) {
+      const achados = await discord<Membro[]>(
+        `/guilds/${guildId}/members/search?query=${encodeURIComponent(nome.slice(0, 3))}&limit=100`,
+      ).catch(() => [] as Membro[]);
+      for (const m of achados) vistos.set(m.user.id, enxuto(m));
+    }
+    return { origem: "busca", erro_listagem: String(err), membros: [...vistos.values()] };
+  }
+}
+
 Deno.serve(async (req: Request) => {
   const caminho = new URL(req.url).pathname;
+  if (req.method === "POST" && caminho.endsWith("/internal/membros")) {
+    const esperado = await segredoInterno();
+    if (!esperado || !segredosIguais(esperado, req.headers.get("x-cron-secret") ?? "")) {
+      return new Response("unauthorized", { status: 401 });
+    }
+    const { guild_id, nomes } = await req.json().catch(() => ({})) as { guild_id?: string; nomes?: string[] };
+    if (!guild_id) return json({ erro: "guild_id obrigatório" }, 400);
+    try {
+      return json(await membros(guild_id, nomes ?? []));
+    } catch (err) {
+      return json({ erro: err instanceof Error ? err.message : String(err) }, 500);
+    }
+  }
   if (req.method !== "POST" || !caminho.endsWith("/internal/secao-ferramentas")) {
     return new Response("Not Found", { status: 404 });
   }

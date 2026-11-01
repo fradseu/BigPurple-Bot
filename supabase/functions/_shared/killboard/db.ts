@@ -76,8 +76,9 @@ export async function guildaAlbion(id: string | null): Promise<{ id: string; nom
   return g ? { id: g.albion_guild_id, nome: g.nome } : null;
 }
 
-// player_id do Albion -> discord_user_id, das candidaturas aprovadas neste servidor.
-// Se a mesma pessoa foi aprovada mais de uma vez, vale a aprovação mais recente.
+// player_id do Albion -> discord_user_id. Fontes, da mais forte pra mais fraca: tabela
+// membros_vinculo (recrutamento, similaridade ou manual) e candidaturas aprovadas (as antigas,
+// de antes da tabela). Se a mesma pessoa foi aprovada mais de uma vez, vale a mais recente.
 export async function vinculosAprovados(guildId: string): Promise<Map<string, string>> {
   const { data, error } = await db().from("recrutamento_candidaturas")
     .select("discord_user_id, albion_player_id, decidido_em")
@@ -91,6 +92,13 @@ export async function vinculosAprovados(guildId: string): Promise<Map<string, st
   }
   const porJogador = new Map<string, string>();
   for (const [discord, jogador] of porDiscord) porJogador.set(jogador, discord);
+
+  const { data: tabela, error: erroTabela } = await db().from("membros_vinculo")
+    .select("albion_player_id, discord_user_id").eq("guild_id", guildId);
+  if (erroTabela) throw new Error(`Erro ao ler membros_vinculo: ${erroTabela.message}`);
+  for (const l of (tabela ?? []) as Array<{ albion_player_id: string; discord_user_id: string }>) {
+    porJogador.set(l.albion_player_id, l.discord_user_id);
+  }
   return porJogador;
 }
 
