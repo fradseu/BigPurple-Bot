@@ -4,6 +4,8 @@
 //   "⚔️・killboard" (Membros só leem; o bot posta). Devolve os ids.
 //   POST /internal/membros  {"guild_id", "nomes"?} — membros do servidor (id, nomes, cargos), só
 //   leitura. Tenta a listagem completa; se o bot não tiver a intent de membros, busca nome por nome.
+//   POST /internal/dar-cargo  {"guild_id", "cargo_id", "usuarios": [...]} — adiciona um cargo usando
+//   o token do bot de RECRUTAMENTO (é ele que tem "Gerenciar cargos" acima do cargo Membro).
 // Protegida pelo segredo interno (public.bot_segredos 'interno').
 import { discord } from "../_shared/killboard/discord.ts";
 import { segredoInterno, segredosIguais } from "../_shared/killboard/segredo.ts";
@@ -101,8 +103,35 @@ async function membros(guildId: string, nomes: string[]) {
   }
 }
 
+async function darCargo(guildId: string, cargoId: string, usuarios: string[]) {
+  const token = Deno.env.get("RECRUTAMENTO_DISCORD_TOKEN");
+  if (!token) throw new Error("RECRUTAMENTO_DISCORD_TOKEN não configurado");
+  const resultado: Record<string, string> = {};
+  for (const u of usuarios) {
+    const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${u}/roles/${cargoId}`, {
+      method: "PUT",
+      headers: { Authorization: `Bot ${token}`, "X-Audit-Log-Reason": "Killboard: cargo Membro" },
+    });
+    resultado[u] = res.ok ? "ok" : `${res.status} ${await res.text()}`;
+  }
+  return resultado;
+}
+
 Deno.serve(async (req: Request) => {
   const caminho = new URL(req.url).pathname;
+  if (req.method === "POST" && caminho.endsWith("/internal/dar-cargo")) {
+    const esperado = await segredoInterno();
+    if (!esperado || !segredosIguais(esperado, req.headers.get("x-cron-secret") ?? "")) {
+      return new Response("unauthorized", { status: 401 });
+    }
+    const b = await req.json().catch(() => ({})) as { guild_id?: string; cargo_id?: string; usuarios?: string[] };
+    if (!b.guild_id || !b.cargo_id || !b.usuarios?.length) return json({ erro: "guild_id, cargo_id e usuarios" }, 400);
+    try {
+      return json(await darCargo(b.guild_id, b.cargo_id, b.usuarios));
+    } catch (err) {
+      return json({ erro: err instanceof Error ? err.message : String(err) }, 500);
+    }
+  }
   if (req.method === "POST" && caminho.endsWith("/internal/membros")) {
     const esperado = await segredoInterno();
     if (!esperado || !segredosIguais(esperado, req.headers.get("x-cron-secret") ?? "")) {
