@@ -8,8 +8,11 @@
 //   o token do bot de RECRUTAMENTO (é ele que tem "Gerenciar cargos" acima do cargo Membro).
 //   POST /internal/reescrever-kills  {"guild_id"} — reescreve as mensagens já postadas no killboard
 //   com o layout atual (nomes do jogo no lugar de menções), usando killboard_postados.nomes.
+//   POST /internal/repostar-kills  {"guild_id"} — reposta as kills registradas a partir dos eventos
+//   guardados (killboard_eventos), já com o card pronto. Não depende da API do Albion.
 // Protegida pelo segredo interno (public.bot_segredos 'interno').
-import { discord } from "../_shared/killboard/discord.ts";
+import { discord, postarEmbed, prepararCard } from "../_shared/killboard/discord.ts";
+import { EventoAlbion, idsPorNome, montarEmbedEvento, TipoEvento, urlCard } from "../_shared/killboard/dominio.ts";
 import { segredoInterno, segredosIguais } from "../_shared/killboard/segredo.ts";
 import { createClient } from "@supabase/supabase-js";
 
@@ -140,7 +143,7 @@ async function reescreverKills(guildId: string) {
       const embed: Record<string, unknown> = {
         ...msg.embeds[0],
         description: `${rotulos[p.tipo]} ${p.nomes.map((n) => `**${n}**`).join(", ")}`,
-        image: { url: `https://qroosefyfxefjrlhogrh.supabase.co/functions/v1/killboard-imagem/${p.event_id}.png` },
+        image: { url: urlCard(p.event_id) },
       };
       // Layout atual: o card de imagem substitui os campos e a miniatura. Também saem os campos
       // que o Discord devolve mas não aceita de volta.
@@ -158,8 +161,57 @@ async function reescreverKills(guildId: string) {
   return resultado;
 }
 
+async function repostarKills(guildId: string) {
+  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
+    auth: { persistSession: false },
+  });
+  const { data: cfg } = await db.from("killboard_config").select("canal_id").eq("guild_id", guildId).single();
+  const { data: postados } = await db.from("killboard_postados").select("event_id, tipo, nomes").eq("guild_id", guildId);
+  if (!cfg || !postados?.length) return { postados: 0 };
+  const ids = (postados as Array<{ event_id: number }>).map((p) => p.event_id);
+  const { data: eventos } = await db.from("killboard_eventos").select("event_id, evento").in("event_id", ids);
+  const porId = new Map<number, EventoAlbion>(
+    ((eventos ?? []) as Array<{ event_id: number; evento: EventoAlbion }>).map((e) => [Number(e.event_id), e.evento]),
+  );
+
+  const lista = (postados as Array<{ event_id: number; tipo: TipoEvento; nomes: string[] }>)
+    .map((p) => ({ ...p, evento: porId.get(Number(p.event_id)) }))
+    .filter((p) => p.evento)
+    .sort((a, b) => new Date(a.evento!.TimeStamp).getTime() - new Date(b.evento!.TimeStamp).getTime());
+
+  const resultado: Record<string, string> = {};
+  for (const p of lista) {
+    try {
+      const evento = p.evento!;
+      await prepararCard(urlCard(evento.EventId));
+      const embed = montarEmbedEvento(evento, { tipo: p.tipo, membros: idsPorNome(evento, p.nomes) });
+      const msg = await postarEmbed(cfg.canal_id, embed);
+      await db.from("killboard_postados").update({ mensagem_id: msg.id })
+        .eq("guild_id", guildId).eq("event_id", p.event_id);
+      resultado[String(p.event_id)] = "ok";
+    } catch (err) {
+      resultado[String(p.event_id)] = err instanceof Error ? err.message : String(err);
+    }
+    await new Promise((r) => setTimeout(r, 1_200));
+  }
+  return resultado;
+}
+
 Deno.serve(async (req: Request) => {
   const caminho = new URL(req.url).pathname;
+  if (req.method === "POST" && caminho.endsWith("/internal/repostar-kills")) {
+    const esperado = await segredoInterno();
+    if (!esperado || !segredosIguais(esperado, req.headers.get("x-cron-secret") ?? "")) {
+      return new Response("unauthorized", { status: 401 });
+    }
+    const { guild_id } = await req.json().catch(() => ({})) as { guild_id?: string };
+    if (!guild_id) return json({ erro: "guild_id obrigatório" }, 400);
+    try {
+      return json(await repostarKills(guild_id));
+    } catch (err) {
+      return json({ erro: err instanceof Error ? err.message : String(err) }, 500);
+    }
+  }
   if (req.method === "POST" && caminho.endsWith("/internal/reescrever-kills")) {
     const esperado = await segredoInterno();
     if (!esperado || !segredosIguais(esperado, req.headers.get("x-cron-secret") ?? "")) {
