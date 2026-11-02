@@ -11,6 +11,7 @@ import {
   montarRanking,
   podeConfigurar,
   textoMencoes,
+  textoRanking,
 } from "./dominio.ts";
 
 function evento(over: Partial<EventoAlbion> = {}): EventoAlbion {
@@ -143,8 +144,10 @@ Deno.test("ranking: limita ao top N e mostra medalhas", () => {
   const r = montarRanking(linhas);
   assertEquals(r.kills.length, 10);
   assertEquals(r.kills[0].discordId, "u11");
-  const embed = montarEmbedRanking(r, 30);
-  assertEquals(embed.fields?.[0].value.split("\n")[0], "🥇 <@u11> — **1** · 11 de fama");
-  assertEquals(embed.fields?.[0].value.split("\n")[3], "`4.` <@u8> — **1** · 8 de fama");
-  assertEquals(embed.fields?.[2].value, "_ninguém ainda_");
+  const texto = textoRanking(r).split("\n");
+  assertEquals(texto[0], "**⚔️ Top Kills**");
+  assertEquals(texto[1], "🥇 <@u11> — **1** · 11 de fama");
+  assertEquals(texto[4], "`4.` <@u8> — **1** · 8 de fama");
+  assertEquals(texto[texto.length - 1], "_ninguém ainda_");
+  assertEquals(montarEmbedRanking(30).title, "🏆 Ranking do Killboard — últimos 30 dias");
 });

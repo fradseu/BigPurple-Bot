@@ -22,6 +22,7 @@ import {
   montarEmbedRanking,
   montarRanking,
   textoMencoes,
+  textoRanking,
 } from "./dominio.ts";
 
 // Teto por execução (o agendador roda a cada 5 min; o que sobrar sai na próxima).
@@ -121,7 +122,7 @@ export async function postarRankings(): Promise<ResultadoKillboard[]> {
   for (const cfg of await lerConfigsAtivas()) {
     try {
       const ranking = montarRanking(await postadosRecentes(cfg.guild_id, DIAS_RANKING));
-      await postarEmbed(cfg.canal_id, montarEmbedRanking(ranking, DIAS_RANKING));
+      await postarEmbed(cfg.canal_id, montarEmbedRanking(DIAS_RANKING), textoRanking(ranking));
       resultados.push({ guild_id: cfg.guild_id, postados: 1 });
     } catch (err) {
       resultados.push({ guild_id: cfg.guild_id, erro: err instanceof Error ? err.message : String(err) });

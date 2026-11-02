@@ -233,15 +233,25 @@ function linhasDoTop(posicoes: PosicaoRanking[], rotuloFama: string): string {
   ).join("\n");
 }
 
-export function montarEmbedRanking(r: Ranking, dias: number): DiscordEmbed {
+// Ranking em TEXTO (menções só resolvem para quem está offline fora do embed). O embed fica só
+// com o título e o rodapé.
+export function textoRanking(r: Ranking): string {
+  return [
+    "**⚔️ Top Kills**",
+    linhasDoTop(r.kills, "de fama"),
+    "",
+    "**🤝 Top Assistências**",
+    linhasDoTop(r.assistencias, "de fama"),
+    "",
+    "**💀 Top Mortes**",
+    linhasDoTop(r.mortes, "de fama perdida"),
+  ].join("\n");
+}
+
+export function montarEmbedRanking(dias: number): DiscordEmbed {
   return {
     title: `🏆 Ranking do Killboard — últimos ${dias} dias`,
     color: 0x7b2cbf,
-    fields: [
-      { name: "⚔️ Top Kills", value: linhasDoTop(r.kills, "de fama") },
-      { name: "🤝 Top Assistências", value: linhasDoTop(r.assistencias, "de fama") },
-      { name: "💀 Top Mortes", value: linhasDoTop(r.mortes, "de fama perdida") },
-    ],
     footer: { text: "Só eventos de Membros postados no killboard" },
   };
 }

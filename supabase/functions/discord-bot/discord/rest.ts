@@ -33,6 +33,7 @@ async function discordFetch(path: string, init: RequestInit = {}): Promise<Respo
 
 export interface EditarMensagemPayload {
   content?: string;
+  allowed_mentions?: { parse: string[] };
   components?: ActionRowComponent[];
   embeds?: DiscordEmbed[];
 }

@@ -10,7 +10,7 @@ import {
   postadosRecentes,
   vinculosAprovados,
 } from "../../_shared/killboard/db.ts";
-import { lerSubcomando, montarEmbedRanking, montarRanking, podeConfigurar } from "../../_shared/killboard/dominio.ts";
+import { lerSubcomando, montarEmbedRanking, montarRanking, podeConfigurar, textoRanking } from "../../_shared/killboard/dominio.ts";
 import { editarRespostaOriginal } from "../discord/rest.ts";
 import { deferredReply, reply } from "../discord/responses.ts";
 import { DiscordInteraction, getInteractionUserId } from "../discord/types.ts";
@@ -31,7 +31,11 @@ export function handleComandoKillboard(interaction: DiscordInteraction): Handler
       immediate: deferredReply(false),
       background: async () => {
         const ranking = montarRanking(await postadosRecentes(guildId, DIAS_RANKING));
-        await editarRespostaOriginal(application_id, token, { embeds: [montarEmbedRanking(ranking, DIAS_RANKING)] });
+        await editarRespostaOriginal(application_id, token, {
+          content: textoRanking(ranking),
+          embeds: [montarEmbedRanking(DIAS_RANKING)],
+          allowed_mentions: { parse: [] },
+        });
       },
     };
   }
