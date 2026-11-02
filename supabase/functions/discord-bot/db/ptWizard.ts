@@ -18,6 +18,10 @@ export interface DadosWizard {
   classesAtivas: string[] | null;
   classeFocada: string | null;
   funcoes: Record<string, number>;
+  // Passo 3 por árvore: árvore aberta no seletor de armas e se já está na tela de quantidades.
+  // Opcionais: sessões criadas antes da troca não têm.
+  arvoreAberta?: string | null;
+  emQuantidades?: boolean;
 }
 
 export function estadoInicial(canalId: string): DadosWizard {

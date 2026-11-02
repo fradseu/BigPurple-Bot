@@ -8,6 +8,7 @@
 // através de montarMapaEmojis().
 
 import { EMOJIS_UNICODE_FUNCAO } from "../config.ts";
+import { ARVORES } from "../../_shared/armas.ts";
 import { EmojiGuilda } from "../discord/rest.ts";
 import { DiscordEmoji } from "../discord/types.ts";
 
@@ -88,6 +89,8 @@ const ORDEM_GRUPOS: Record<string, number> = {
   suporte: 2,
   arcolongo: 3,
   lutador: 4,
+  // Árvores de armas depois das funções, na ordem do catálogo.
+  ...Object.fromEntries(ARVORES.map((a, i) => [a.chave, 10 + i])),
 };
 
 // Ordena classes primeiro por grupo (tag), depois alfabeticamente pelo nome

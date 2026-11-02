@@ -1,29 +1,28 @@
 import { assert, assertEquals } from "@std/assert";
 import { SelectOption } from "../discord/types.ts";
 import { EmojiResolvido } from "./emoji.ts";
+import { CLASSES as CLASSES_POOL } from "../../pool-bot/config.ts";
 import { classeDoIndice, indiceDaClasse, recalcularOpcoes, rotuloCompletoDaClasse } from "./opcoesClasse.ts";
 
 const SEM_EMOJIS = new Map<string, EmojiResolvido>();
 
 Deno.test("rotuloCompletoDaClasse: nome simples vira o formato do criador de conteúdo", () => {
   assertEquals(rotuloCompletoDaClasse("BADÔNICO"), ":arcolongo: BADÔNICO");
-  assertEquals(rotuloCompletoDaClasse("fura-bruma"), ":arcolongo: FURA-BRUMA"); // ignora caixa
+  assertEquals(rotuloCompletoDaClasse("fura-bruma"), ":arco: FURA-BRUMA"); // ignora caixa; arma do catálogo novo
+  assertEquals(rotuloCompletoDaClasse("NATUREZA (QUALQUER)"), ":natureza: NATUREZA (QUALQUER)");
+  assertEquals(rotuloCompletoDaClasse("TANK"), ":defensivo: TANK");
   assertEquals(rotuloCompletoDaClasse("MAIN HEALER"), ":curandeiro: MAIN HEALER");
   assertEquals(rotuloCompletoDaClasse("PRISMA"), ":lutador: PRISMA"); // a lista tem espaço sobrando no fim
   assertEquals(rotuloCompletoDaClasse("INEXISTENTE"), null);
 });
 
 Deno.test("indiceDaClasse e classeDoIndice: ida e volta pra TODAS as classes do Pool", () => {
-  const todas = [
-    "BADÔNICO", "CHAMA SOMBRA", "FULGURANTE", "FURA-BRUMA", "MAIN HEALER", "TANK", "DPS", "OFF TANK", "SCOUT",
-    "STOPPER CALL", "SUPORTE", "TRANSPORTE", "QUEBRA REINOS", "ADAGA DE UMA MÃO", "BESTA LEVE", "CAÇA-ESPIRÍTOS",
-    "CORTA CURA", "ENIGMÁTICO", "LANÇA VIROTES", "MONGE NEGRO", "NATUREZA", "PRISMA", "PT HEALER",
-  ];
+  const todas = [...CLASSES_POOL, "BADÔNICO", "FURA-BRUMA", "MAIN HEALER", "PRISMA", "PT HEALER"];
   for (const nome of todas) {
     const i = indiceDaClasse(nome);
     assert(i >= 0, `"${nome}" não existe na lista do criador de conteúdo`);
     assertEquals(classeDoIndice(i), nome);
-    assert(String(i).length <= 2, "o índice tem que caber em 2 dígitos no custom_id");
+    assert(String(i).length <= 3, "o índice tem que caber em 3 dígitos no custom_id");
   }
   assertEquals(indiceDaClasse("INEXISTENTE"), -1);
   assertEquals(classeDoIndice(999), null);
@@ -36,7 +35,7 @@ Deno.test("recalcularOpcoes: função nova (vaga agregada) entra no dropdown com
   const linhas = ["(0/1) 🏹 BADÔNICO ", "(0/1) 🏹 BADÔNICO ", "(1/1) 🏹 FURA-BRUMA <@1> "];
   const r = recalcularOpcoes(atuais, linhas, SEM_EMOJIS);
   assertEquals(r.map((o) => o.label), ["BADÔNICO (Max 2)", "FURA-BRUMA (Max 1)"]);
-  assertEquals(r[1].value, ":arcolongo: FURA-BRUMA");
+  assertEquals(r[1].value, ":arco: FURA-BRUMA");
 });
 
 Deno.test("recalcularOpcoes: função sem NENHUMA vaga (vaga substituída) sai do dropdown", () => {

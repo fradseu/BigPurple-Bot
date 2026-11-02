@@ -2,7 +2,8 @@
 // funções auxiliares soltas no fim do index.js do v1: montarPayloadPasso1,
 // montarBotoesBonus, atualizarComponentesPainel, renderizarPasso2/3).
 
-import { ATIVIDADES, BONUS, CIDADES, FUNCOES, ZONAS } from "../config.ts";
+import { ATIVIDADES, BONUS, CIDADES, ZONAS } from "../config.ts";
+import { ARVORES, classeDaArma, classeGenericaDaArvore, CLASSES_FUNCOES } from "../../_shared/armas.ts";
 import { buscarMembro, nomeExibicaoMembro } from "../discord/rest.ts";
 import {
   ActionRowComponent,
@@ -18,6 +19,7 @@ import {
   EmojiResolvido,
   compararClasses,
   emojiParaComponente,
+  formatarClasseParaMensagem,
   parseClasseComEmoji,
 } from "../domain/emoji.ts";
 import { MARCADOR_SALA_VOZ, listarJogadoresInscritos } from "../domain/vagas.ts";
@@ -230,28 +232,103 @@ export function montarPayloadPasso2(dados: DadosWizard): InteractionCallbackData
 // ---------------------------------------------------------------------------
 // PASSO 3
 // ---------------------------------------------------------------------------
+// Limite do Discord: o seletor de foco da tela de quantidades aceita até 25 classes.
+export const MAX_CLASSES_PT = 25;
+
+// Passo 3 (escolha): funções genéricas + árvore → armas. As classes escolhidas se acumulam
+// entre as árvores; "Definir quantidades" leva ao painel de +/-.
 export function montarPayloadPasso3Selecao(
+  dados: DadosWizard,
   emojisResolvidos: Map<string, EmojiResolvido>,
 ): InteractionCallbackData {
-  const opcoes: SelectOption[] = [...FUNCOES].sort(compararClasses).slice(0, 25).map((classe) => {
+  const escolhidas = new Set(dados.classesAtivas ?? []);
+  const arvore = ARVORES.find((a) => a.chave === dados.arvoreAberta) ?? null;
+
+  const opcoesFuncoes: SelectOption[] = CLASSES_FUNCOES.map((classe) => {
     const { nome, emoji } = parseClasseComEmoji(classe, emojisResolvidos);
-    return { label: nome, value: classe, emoji: emojiParaComponente(emoji) };
+    return { label: nome, value: classe, emoji: emojiParaComponente(emoji), default: escolhidas.has(classe) };
   });
+
+  const opcoesArvores: SelectOption[] = ARVORES.map((a) => {
+    const naArvore = [classeGenericaDaArvore(a), ...a.armas.map((arma) => classeDaArma(a, arma))]
+      .filter((c) => escolhidas.has(c)).length;
+    return {
+      label: a.nome,
+      value: a.chave,
+      description: `${a.armas.length} armas` + (naArvore ? ` · ${naArvore} escolhida${naArvore > 1 ? "s" : ""}` : ""),
+      emoji: { name: a.emoji },
+      default: a.chave === arvore?.chave,
+    };
+  });
+
+  const resumo = [...escolhidas].sort(compararClasses).map((c) => formatarClasseParaMensagem(c, emojisResolvidos));
+
+  const linhas: ActionRowComponent[] = [
+    actionRow({
+      type: 3 as const,
+      custom_id: "selecionar_funcoes",
+      placeholder: "🧭 Funções genéricas (qualquer arma que faça a função)",
+      min_values: 0,
+      max_values: opcoesFuncoes.length,
+      options: opcoesFuncoes,
+    }),
+    actionRow({
+      type: 3 as const,
+      custom_id: "escolher_arvore",
+      placeholder: "🌳 Abrir uma árvore de armas",
+      options: opcoesArvores,
+    }),
+  ];
+
+  if (arvore) {
+    const opcoesArmas: SelectOption[] = [
+      { classe: classeGenericaDaArvore(arvore), label: `${arvore.nome} (qualquer arma)` },
+      ...arvore.armas.map((arma) => ({ classe: classeDaArma(arvore, arma), label: arma.nome })),
+    ].map(({ classe, label }) => ({
+      label,
+      value: classe,
+      emoji: { name: arvore.emoji },
+      default: escolhidas.has(classe),
+    }));
+    linhas.push(
+      actionRow({
+        type: 3 as const,
+        custom_id: "selecionar_armas",
+        placeholder: `${arvore.emoji} Armas de ${arvore.nome} nesta PT`,
+        min_values: 0,
+        max_values: opcoesArmas.length,
+        options: opcoesArmas,
+      }),
+    );
+  }
+
+  linhas.push(
+    actionRow(
+      {
+        type: 2 as const,
+        custom_id: "btn_limpar_classes",
+        label: "🧹 Limpar escolhas",
+        style: ButtonStyle.Secondary,
+        disabled: escolhidas.size === 0,
+      },
+      {
+        type: 2 as const,
+        custom_id: "btn_definir_quantidades",
+        label: "➡️ Definir quantidades",
+        style: ButtonStyle.Success,
+        disabled: escolhidas.size === 0,
+      },
+    ),
+  );
 
   return {
     content:
-      `🛠️ **PASSO 3: Seleção de Composição da PT**\n` +
-      `Escolha no menu abaixo **quais classes** farão parte deste conteúdo (Máximo de 25 exibidas):`,
-    components: [
-      actionRow({
-        type: 3 as const,
-        custom_id: "selecionar_classes_da_pt",
-        placeholder: "🧙‍♂️ Quais classes terão vagas nesta PT?",
-        min_values: 1,
-        max_values: opcoes.length,
-        options: opcoes,
-      }),
-    ],
+      `🛠️ **PASSO 3: Composição da PT**\n` +
+      `Escolha as **funções** e/ou abra uma **árvore** pra marcar as armas. As escolhas se somam entre as árvores ` +
+      `(máximo ${MAX_CLASSES_PT}).\n\n` +
+      `**Escolhidas (${escolhidas.size}/${MAX_CLASSES_PT}):** ` +
+      (resumo.length ? resumo.join(", ") : "_nenhuma ainda_"),
+    components: linhas,
   };
 }
 
@@ -319,7 +396,7 @@ export function montarPayloadPasso3Painel(
       {
         type: 2 as const,
         custom_id: "btn_voltar_classes",
-        label: "🔄 Mudar Classes",
+        label: "🔄 Mudar classes",
         style: ButtonStyle.Secondary,
       },
       {

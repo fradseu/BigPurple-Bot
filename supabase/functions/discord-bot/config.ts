@@ -1,3 +1,4 @@
+import { ARVORES, CLASSES_ARMAS, CLASSES_FUNCOES } from "../_shared/armas.ts";
 // config.ts - Central de Configurações do Clã (portado do config.js do v1, tipado)
 
 export interface OpcaoConfig {
@@ -38,6 +39,8 @@ export const EMOJIS_UNICODE_FUNCAO: Record<string, string> = {
   defensivo: "🛡️",
   suporte: "✨",
   lutador: "⚔️",
+  // Uma tag por árvore de armas (":natureza:", ":martelo:"…), com o emoji do catálogo.
+  ...Object.fromEntries(ARVORES.map((a) => [a.chave, a.emoji])),
 };
 
 // IDs de emojis customizados de OUTRO servidor (o antigo). NÃO servem mais pra renderizar:
@@ -52,24 +55,22 @@ export const EMOJIS_FUNCAO: Record<string, string> = {
   lutador: "1417684554281386055",
 };
 
-// Se quiser mudar o nome de uma classe ou adicionar uma nova (ex: "🧙‍♂️ SUPORTE"), mexa só aqui!
-export const FUNCOES: string[] = [
-  //:curandeiro: :arcolongo: :defensivo::suporte: :lutador:
-  //básicos
+// Classes das vagas: funções genéricas + todas as armas do jogo por árvore (catálogo oficial em
+// _shared/armas.ts). O Passo 3 escolhe por FUNÇÃO e por ÁRVORE → ARMAS; aqui fica a lista completa
+// (é ela que dá o índice usado nos botões do catálogo do Pool).
+export const FUNCOES_ATUAIS: string[] = [...CLASSES_FUNCOES, ...CLASSES_ARMAS];
+
+// Classes do modelo antigo (lista fixa). Não aparecem mais pra escolher, mas continuam
+// reconhecidas — PTs abertas antes da troca seguem funcionando (inscrição, catálogo, painel).
+export const FUNCOES_LEGADO: string[] = [
   ":arcolongo: BADÔNICO",
   ":suporte: CHAMA SOMBRA",
   ":lutador: FULGURANTE",
   ":arcolongo: FURA-BRUMA",
   ":curandeiro: MAIN HEALER",
-  ":defensivo: TANK",
-  //opcionais
-  ":lutador: DPS",
-  ":defensivo: OFF TANK",
   ":lutador: SCOUT",
   ":defensivo: STOPPER CALL",
-  ":suporte: SUPORTE",
   ":defensivo: TRANSPORTE",
-  //opcionais
   ":suporte: QUEBRA REINOS",
   ":lutador: ADAGA DE UMA MÃO",
   ":arcolongo: BESTA LEVE",
@@ -82,6 +83,10 @@ export const FUNCOES: string[] = [
   ":lutador: PRISMA ",
   ":curandeiro: PT HEALER",
 ];
+
+// Todas as classes reconhecidas (atuais primeiro: o índice delas não muda com o legado).
+export const FUNCOES: string[] = [...FUNCOES_ATUAIS, ...FUNCOES_LEGADO];
+
 
 export const ATIVIDADES: OpcaoConfig[] = [
   { label: "DG Grupo", value: "DG Grupo" },

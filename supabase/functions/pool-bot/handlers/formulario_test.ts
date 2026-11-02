@@ -13,7 +13,7 @@ const botoes = (tela: ReturnType<typeof montarFormulario>) =>
 function completo() {
   let e = aplicarSelecao(estadoInicial(), "areas", ["PVE"]);
   e = aplicarSelecao(e, "atividades", ["DG Grupo"]);
-  e = aplicarSelecao(e, "classes", ["BADÔNICO"]);
+  e = aplicarSelecao(e, "classes", ["NATUREZA (QUALQUER)"]);
   return aplicarSelecao(e, "tier", ["T7"]);
 }
 
@@ -58,7 +58,7 @@ Deno.test("escolhas voltam marcadas (default) ao redesenhar — senão a lista p
   const marcadas = (id: string) => sel.find((s) => s.custom_id === id)!.options.filter((o) => o.default).map((o) => o.value);
   assertEquals(marcadas("pool_sel:areas"), ["PVE"]);
   assertEquals(marcadas("pool_sel:atividades"), ["DG Grupo"]);
-  assertEquals(marcadas("pool_sel:classes"), ["BADÔNICO"]);
+  assertEquals(marcadas("pool_sel:classes"), ["NATUREZA (QUALQUER)"]);
   assertEquals(marcadas("pool_sel:tier"), ["T7"]);
 });
 
@@ -73,6 +73,6 @@ Deno.test("tela de revisão: 4 durações, a escolhida destacada, Voltar/Confirm
 Deno.test("tela de revisão: mostra o resumo e nunca expõe menção/nick", () => {
   const tela = montarRevisao(completo());
   const texto = tela.embeds[0].description!;
-  assert(texto.includes("PVE") && texto.includes("DG Grupo") && texto.includes("BADÔNICO") && texto.includes("T7"));
+  assert(texto.includes("PVE") && texto.includes("DG Grupo") && texto.includes("NATUREZA (QUALQUER)") && texto.includes("T7"));
   assert(!/<@!?\d+>/.test(JSON.stringify(tela)));
 });
