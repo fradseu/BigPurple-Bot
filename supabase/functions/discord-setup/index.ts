@@ -8,6 +8,7 @@
 //   o token do bot de RECRUTAMENTO (é ele que tem "Gerenciar cargos" acima do cargo Membro).
 //   POST /internal/reescrever-kills  {"guild_id"} — reescreve as mensagens já postadas no killboard
 //   com o layout atual (nomes do jogo no lugar de menções), usando killboard_postados.nomes.
+//   Opcional: "event_ids" (só esses) e "v" (versão da imagem, força o Discord a buscar de novo).
 //   POST /internal/repostar-kills  {"guild_id"} — reposta as kills registradas a partir dos eventos
 //   guardados (killboard_eventos), já com o card pronto. Não depende da API do Albion.
 // Protegida pelo segredo interno (public.bot_segredos 'interno').
@@ -125,13 +126,15 @@ async function darCargo(guildId: string, cargoId: string, usuarios: string[]) {
 
 interface Postado { event_id: number; tipo: string; mensagem_id: string | null; nomes: string[] }
 
-async function reescreverKills(guildId: string) {
+async function reescreverKills(guildId: string, eventIds?: number[], versao?: string) {
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
     auth: { persistSession: false },
   });
   const { data: cfg } = await db.from("killboard_config").select("canal_id").eq("guild_id", guildId).single();
-  const { data, error } = await db.from("killboard_postados").select("event_id, tipo, mensagem_id, nomes")
+  let consulta = db.from("killboard_postados").select("event_id, tipo, mensagem_id, nomes")
     .eq("guild_id", guildId).not("mensagem_id", "is", null);
+  if (eventIds?.length) consulta = consulta.in("event_id", eventIds);
+  const { data, error } = await consulta;
   if (error || !cfg) throw new Error(`Erro ao ler postados: ${error?.message}`);
   const rotulos: Record<string, string> = { kill: "Kill de", morte: "Morte de", assistencia: "Assistência de" };
   const resultado: Record<string, string> = {};
@@ -143,7 +146,7 @@ async function reescreverKills(guildId: string) {
       const embed: Record<string, unknown> = {
         ...msg.embeds[0],
         description: `${rotulos[p.tipo]} ${p.nomes.map((n) => `**${n}**`).join(", ")}`,
-        image: { url: urlCard(p.event_id) },
+        image: { url: versao ? urlCard(p.event_id).replace(/\?v=\d+$/, `?v=${versao}`) : urlCard(p.event_id) },
       };
       // Layout atual: o card de imagem substitui os campos e a miniatura. Também saem os campos
       // que o Discord devolve mas não aceita de volta.
@@ -217,10 +220,14 @@ Deno.serve(async (req: Request) => {
     if (!esperado || !segredosIguais(esperado, req.headers.get("x-cron-secret") ?? "")) {
       return new Response("unauthorized", { status: 401 });
     }
-    const { guild_id } = await req.json().catch(() => ({})) as { guild_id?: string };
+    const { guild_id, event_ids, v } = await req.json().catch(() => ({})) as {
+      guild_id?: string;
+      event_ids?: number[];
+      v?: string;
+    };
     if (!guild_id) return json({ erro: "guild_id obrigatório" }, 400);
     try {
-      return json(await reescreverKills(guild_id));
+      return json(await reescreverKills(guild_id, event_ids, v));
     } catch (err) {
       return json({ erro: err instanceof Error ? err.message : String(err) }, 500);
     }

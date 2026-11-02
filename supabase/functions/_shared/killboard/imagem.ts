@@ -146,7 +146,7 @@ async function painel(
   w: number,
   h: number,
   fundo: number,
-) {
+): Promise<number> {
   caixa(img, x, y, w, h, fundo, BORDA_PAINEL);
 
   const nome = await texto(j.Name, 30, TINTA);
@@ -163,6 +163,7 @@ async function painel(
     const item = slot ? j.Equipment?.[slot] : null;
     return item?.Type ? icone(item) : Promise.resolve(null);
   });
+  let faltaram = 0;
   GRADE.flat().forEach((slot, i) => {
     if (!slot) return;
     const cx = gx + (i % 3) * (ICONE + ESPACO);
@@ -170,7 +171,10 @@ async function painel(
     const ic = icones[i];
     if (ic) img.composite(ic, cx, cy);
     else caixa(img, cx + 4, cy + 4, ICONE - 8, ICONE - 8, SLOT_VAZIO);
+    // Espaço com item que não carregou (diferente de espaço vazio de verdade).
+    if (!ic && j.Equipment?.[slot]?.Type) faltaram++;
   });
+  return faltaram;
 }
 
 function dataUtc(iso: string): string {
@@ -180,7 +184,8 @@ function dataUtc(iso: string): string {
     `${p(d.getUTCHours())}:${p(d.getUTCMinutes())} UTC`;
 }
 
-export async function desenharAbate(e: EventoCompleto): Promise<Uint8Array> {
+// `completo` = false quando algum ícone não carregou (o card não deve ser guardado como pronto).
+export async function desenharAbate(e: EventoCompleto): Promise<{ png: Uint8Array; completo: boolean }> {
   const img = new Image(LARGURA, ALTURA);
   img.fill(BORDA);
   caixa(img, 8, 8, LARGURA - 16, ALTURA - 16, PERGAMINHO);
@@ -198,8 +203,8 @@ export async function desenharAbate(e: EventoCompleto): Promise<Uint8Array> {
   const pw = 400;
   const ph = 470;
   const py = 112;
-  await painel(img, e.Killer, 40, py, pw, ph, PAINEL);
-  await painel(img, e.Victim, LARGURA - 40 - pw, py, pw, ph, PAINEL_VITIMA);
+  const faltaram = await painel(img, e.Killer, 40, py, pw, ph, PAINEL) +
+    await painel(img, e.Victim, LARGURA - 40 - pw, py, pw, ph, PAINEL_VITIMA);
 
   // Selo "ABATEU" no meio.
   const selo = await texto("ABATEU", 24, BRANCO);
@@ -218,5 +223,5 @@ export async function desenharAbate(e: EventoCompleto): Promise<Uint8Array> {
   caixa(img, fx, fy, fw, 46, cor(0xf0c96aff), BORDA);
   img.composite(rotulo, fx + 24, fy + Math.round((46 - rotulo.height) / 2));
 
-  return await img.encode();
+  return { png: await img.encode(), completo: faltaram === 0 };
 }
