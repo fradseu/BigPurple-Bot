@@ -114,8 +114,17 @@ export function urlItem(tipo: string): string {
 }
 
 // Endereço público da imagem "Detalhes do abate" (function killboard-imagem).
+// `?v=` muda quando o desenho muda (o Discord guarda a imagem pelo endereço).
 export function urlCard(eventId: number): string {
-  return `https://qroosefyfxefjrlhogrh.supabase.co/functions/v1/killboard-imagem/${eventId}.png`;
+  return `https://qroosefyfxefjrlhogrh.supabase.co/functions/v1/killboard-imagem/${eventId}.png?v=2`;
+}
+
+// Membros (player_id) do evento a partir dos nomes guardados em killboard_postados.
+export function idsPorNome(evento: EventoAlbion, nomes: string[]): string[] {
+  const porNome = new Map<string, string>(
+    [evento.Killer, evento.Victim, ...(evento.Participants ?? [])].map((j) => [j.Name, j.Id]),
+  );
+  return nomes.map((n) => porNome.get(n)).filter((id): id is string => Boolean(id));
 }
 
 export function montarEmbedEvento(evento: EventoAlbion, c: Classificacao): DiscordEmbed {

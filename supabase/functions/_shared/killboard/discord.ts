@@ -59,3 +59,14 @@ export async function membroPeloNome(
     return null;
   }
 }
+
+// Gera a imagem do card antes de postar (o desenho leva alguns segundos; sem isso o Discord
+// desiste de esperar e a mensagem fica sem imagem). Falhar aqui não impede o post.
+export async function prepararCard(url: string): Promise<void> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
+    await res.arrayBuffer();
+  } catch (err) {
+    console.error("prepararCard", url, err instanceof Error ? err.message : String(err));
+  }
+}

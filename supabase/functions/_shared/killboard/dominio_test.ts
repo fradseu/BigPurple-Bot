@@ -4,6 +4,7 @@ import {
   EventoAlbion,
   eventosParaPostar,
   formatarFama,
+  idsPorNome,
   jogadoresDoEvento,
   lerSubcomando,
   montarEmbedEvento,
@@ -94,7 +95,7 @@ Deno.test("kill: menção no texto da mensagem, nome do jogo no embed, link do e
   assertEquals(embed.description, "Kill de **Matador**, **Ajudante**");
   assertEquals(embed.url, "https://albiononline.com/killboard/kill/1");
   assertEquals(embed.color, 0x2ecc71);
-  assertEquals(embed.image?.url, "https://qroosefyfxefjrlhogrh.supabase.co/functions/v1/killboard-imagem/1.png");
+  assertEquals(embed.image?.url, "https://qroosefyfxefjrlhogrh.supabase.co/functions/v1/killboard-imagem/1.png?v=2");
 });
 
 Deno.test("embed de morte", () => {
@@ -148,4 +149,8 @@ Deno.test("ranking: limita ao top N e mostra medalhas", () => {
   assertEquals(texto[4], "`4.` **Jogador8** — 1 · 8 de fama");
   assertEquals(texto[texto.length - 1], "_ninguém ainda_");
   assertEquals(montarEmbedRanking(30).title, "🏆 Ranking do Killboard — últimos 30 dias");
+});
+
+Deno.test("ids dos membros a partir dos nomes guardados", () => {
+  assertEquals(idsPorNome(evento(), ["Matador", "Ajudante", "Sumiu"]), ["K", "A"]);
 });

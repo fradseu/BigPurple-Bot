@@ -27,10 +27,18 @@ Deno.serve(async (req: Request) => {
   try {
     let png = cache.get(id);
     if (!png) {
-      const { data, error } = await db().from("killboard_eventos").select("evento").eq("event_id", id).maybeSingle();
+      const { data, error } = await db().from("killboard_eventos").select("evento, png_base64")
+        .eq("event_id", id).maybeSingle();
       if (error) throw new Error(error.message);
       if (!data) return new Response("Not Found", { status: 404 });
-      png = await desenharAbate((data as { evento: EventoCompleto }).evento);
+      const linha = data as { evento: EventoCompleto; png_base64: string | null };
+      if (linha.png_base64) {
+        png = Uint8Array.from(atob(linha.png_base64), (c) => c.charCodeAt(0));
+      } else {
+        // Primeira vez: desenha e guarda o PNG pronto (as próximas leituras saem na hora).
+        png = await desenharAbate(linha.evento);
+        await db().from("killboard_eventos").update({ png_base64: base64(png) }).eq("event_id", id);
+      }
       if (cache.size > 200) cache.clear();
       cache.set(id, png);
     }

@@ -13,7 +13,7 @@ import {
   registrarPostado,
   vinculosAprovados,
 } from "./db.ts";
-import { cargosDoMembro, discord, membroPeloNome, postarEmbed } from "./discord.ts";
+import { cargosDoMembro, discord, membroPeloNome, postarEmbed, prepararCard } from "./discord.ts";
 import {
   Acompanhados,
   classificarEvento,
@@ -24,6 +24,7 @@ import {
   montarRanking,
   nomesDosMembros,
   textoRanking,
+  urlCard,
 } from "./dominio.ts";
 
 // Teto por execução (o agendador roda a cada 5 min; o que sobrar sai na próxima).
@@ -92,6 +93,7 @@ async function rodarServidor(cfg: ConfigKillboard): Promise<ResultadoKillboard> 
     if (!c) continue;
     if (postados > 0) await new Promise((r) => setTimeout(r, PAUSA_ENTRE_POSTS_MS));
     await guardarEvento(evento);
+    await prepararCard(urlCard(evento.EventId));
     const msg = await postarEmbed(cfg.canal_id, montarEmbedEvento(evento, c));
     await registrarPostado(
       cfg.guild_id,
