@@ -2,7 +2,7 @@
 // As listas de atividade e classe são as MESMAS do bot de conteúdo (nomes iguais),
 // pra um disponível do pool casar com as vagas de uma PT na fase 2.
 
-import { ARVORES, FUNCOES_GENERICAS, nomeArvoreGenerica } from "../_shared/armas.ts";
+import { ARVORES, nomeArvoreGenerica } from "../_shared/armas.ts";
 
 export interface Opcao {
   label: string;
@@ -64,12 +64,9 @@ export function atividadesDasAreas(areas: string[]): Opcao[] {
   return ATIVIDADES.filter((a) => permitidas.has(a.value));
 }
 
-// Funções genéricas + árvores de armas inteiras ("NATUREZA (QUALQUER)"): quem marca uma árvore
-// serve pra vaga de qualquer arma dela na PT. Os nomes batem com os do bot de conteúdo (sem a tag).
-export const CLASSES: string[] = [
-  ...FUNCOES_GENERICAS.map((f) => f.nome),
-  ...ARVORES.map(nomeArvoreGenerica),
-];
+// Árvores de armas inteiras ("NATUREZA (QUALQUER)"): quem marca uma árvore serve pra vaga de
+// qualquer arma dela na PT (a função — Healer, Tank... — é marcada depois, no painel da PT).
+export const CLASSES: string[] = ARVORES.map(nomeArvoreGenerica);
 
 export const TIERS: string[] = ["T4", "T5", "T6", "T7", "T8"];
 

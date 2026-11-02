@@ -1,4 +1,4 @@
-// passo1.ts - Configuração inicial (atividades/cidade/zona), título via modal,
+// passo1.ts - Configuração inicial (tipo, requisitos opcionais), título via modal,
 // e transição pro Passo 2. Equivalente aos blocos "Salvando Passo 1",
 // "Transição do Passo 1 para o Passo 2" e "TÍTULO/DESCRIÇÃO CUSTOMIZADO" do v1.
 //
@@ -12,37 +12,65 @@ import { obterEstadoWizard, salvarEstadoWizard } from "../db/ptWizard.ts";
 import { dataHoraAtualBR, normalizarData, normalizarHora } from "../domain/dataHora.ts";
 import { HandlerResult } from "./context.ts";
 import { montarModalTitulo, montarPayloadPasso1, montarPayloadPasso2 } from "./ui.ts";
+import { DadosWizard } from "../db/ptWizard.ts";
+import { editarComPainelPasso3 } from "./passo3.ts";
 
 const SESSAO_EXPIRADA = "⚠️ Sessão expirada — use /conteudo de novo pra começar.";
 
-export function handleConfigSelect(
-  interaction: DiscordInteraction,
-  customId: "config_atividade" | "config_cidade" | "config_zona",
-): HandlerResult {
-  const liderId = getInteractionUserId(interaction);
-  const valores = interaction.data?.values ?? [];
+export function handleConfigTipo(interaction: DiscordInteraction): HandlerResult {
+  return atualizarPasso1(interaction, (dados) => {
+    dados.tipo = interaction.data?.values?.[0] ?? dados.tipo;
+  });
+}
 
+// Botão "⬅️ Voltar" da tela de requisitos.
+export function handleVoltarPasso1(interaction: DiscordInteraction): HandlerResult {
+  return atualizarPasso1(interaction, () => {});
+}
+
+function atualizarPasso1(interaction: DiscordInteraction, mudar: (dados: DadosWizard) => void): HandlerResult {
+  const liderId = getInteractionUserId(interaction);
+  const applicationId = interaction.application_id;
+  const token = interaction.token;
   return {
     immediate: deferredUpdate(),
     background: async () => {
       const dados = await obterEstadoWizard(liderId);
-      if (!dados) return; // sessão expirada — sem mensagem original pra corrigir, só ignora
-
-      if (customId === "config_atividade") dados.atividades = valores;
-      if (customId === "config_cidade") dados.cidade = valores[0] ?? "";
-      if (customId === "config_zona") dados.zona = valores[0] ?? "";
-
+      if (!dados) {
+        await enviarFollowUp(applicationId, token, { content: SESSAO_EXPIRADA, flags: 64 });
+        return;
+      }
+      mudar(dados);
       await salvarEstadoWizard(liderId, dados);
-      // Igual o v1: o próprio Discord já mostra a seleção no dropdown, não
-      // precisa reescrever o conteúdo da mensagem.
+      await editarRespostaOriginal(applicationId, token, montarPayloadPasso1(dados));
     },
   };
 }
 
+// "⚙️ Requisitos (opcional)": tela de Tier/Skip, que volta pro Passo 1.
+export function handleBtnRequisitos(interaction: DiscordInteraction): HandlerResult {
+  const liderId = getInteractionUserId(interaction);
+  const applicationId = interaction.application_id;
+  const token = interaction.token;
+  return {
+    immediate: deferredUpdate(),
+    background: async () => {
+      const dados = await obterEstadoWizard(liderId);
+      if (!dados) {
+        await enviarFollowUp(applicationId, token, { content: SESSAO_EXPIRADA, flags: 64 });
+        return;
+      }
+      await editarRespostaOriginal(applicationId, token, montarPayloadPasso2(dados));
+    },
+  };
+}
+
+// "Avançar para as armas": precisa do tipo (é ele que escolhe o canal de ping).
 export function handleBtnPasso2(interaction: DiscordInteraction): HandlerResult {
   const liderId = getInteractionUserId(interaction);
   const applicationId = interaction.application_id;
   const token = interaction.token;
+  const guildId = interaction.guild_id;
 
   return {
     immediate: deferredUpdate(),
@@ -52,18 +80,11 @@ export function handleBtnPasso2(interaction: DiscordInteraction): HandlerResult 
         await enviarFollowUp(applicationId, token, { content: SESSAO_EXPIRADA, flags: 64 });
         return;
       }
-
-      if (dados.atividades.length === 0 || !dados.cidade || !dados.zona) {
-        await enviarFollowUp(applicationId, token, {
-          content:
-            "⚠️ **Faltam dados!** Selecione pelo menos uma Atividade, Cidade e Zona antes de avançar.",
-          flags: 64,
-        });
+      if (!dados.tipo) {
+        await enviarFollowUp(applicationId, token, { content: "⚠️ Escolha o tipo do conteúdo antes de avançar.", flags: 64 });
         return;
       }
-
-      const payload = montarPayloadPasso2(dados);
-      await editarRespostaOriginal(applicationId, token, payload);
+      await editarComPainelPasso3(applicationId, token, guildId, dados);
     },
   };
 }

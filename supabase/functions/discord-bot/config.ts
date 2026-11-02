@@ -224,3 +224,21 @@ export const BONUS: BonusConfig[] = [
   { label: "Reset", value: "reset", emoji: "♻️" },
   { label: "Guardião", value: "guardiao", emoji: "🩹" },
 ];
+
+// /conteudo: o TIPO decide em qual canal de ping a PT é postada (pool_config.areas_canais).
+export const TIPOS_CONTEUDO: Array<{ value: string; label: string; emoji: string }> = [
+  { value: "PVE", label: "PvE", emoji: "🔵" },
+  { value: "PVP", label: "PvP", emoji: "🔴" },
+  { value: "FAC", label: "Facção", emoji: "🟣" },
+  { value: "AVALON", label: "Avalon", emoji: "🌌" },
+];
+
+// Função que cada jogador marca na própria vaga do painel (igual aos bônus). O líder também
+// pode marcar pros outros.
+export const ROLES_PAINEL: Array<{ value: string; label: string; emoji: string }> = [
+  { value: "HEALER", label: "Healer", emoji: "💚" },
+  { value: "TANK", label: "Tank", emoji: "🛡️" },
+  { value: "OFF TANK", label: "Off Tank", emoji: "🧱" },
+  { value: "SUPORTE", label: "Suporte", emoji: "✨" },
+  { value: "DPS", label: "DPS", emoji: "⚔️" },
+];

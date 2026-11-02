@@ -135,3 +135,30 @@ export function listarJogadoresInscritos(linhas: string[]): JogadorInscrito[] {
 
   return jogadores;
 }
+
+// ---------------------------------------------------------------- função (role) na vaga
+// Marcada logo depois da menção, em código: "(1/1) 🌿 BASTÃO <@1> `HEALER` ⚗️ ".
+const RE_ROLE = /\s*`(?:HEALER|TANK|OFF TANK|SUPORTE|DPS)`/g;
+
+export function roleDaLinha(linha: string): string | null {
+  return linha.match(/`(HEALER|TANK|OFF TANK|SUPORTE|DPS)`/)?.[1] ?? null;
+}
+
+// Troca (ou tira, com role null) a função marcada na linha ocupada.
+export function aplicarRole(linha: string, role: string | null): string {
+  const sem = linha.replace(RE_ROLE, "");
+  if (!role) return sem;
+  return sem.replace(/(<@!?\d+>)/, `$1 \`${role}\``);
+}
+
+// Índices das linhas ocupadas pelas menções dadas (ignora a linha do criador).
+export function linhasDosJogadores(linhas: string[], mencoes: string[]): number[] {
+  const ids = new Set(mencoes.map((m) => m.replace(/[<@!>]/g, "")));
+  const out: number[] = [];
+  linhas.forEach((linha, i) => {
+    if (ehLinhaCriador(linha)) return;
+    const id = linha.match(/<@!?(\d+)>/)?.[1];
+    if (id && ids.has(id)) out.push(i);
+  });
+  return out;
+}
