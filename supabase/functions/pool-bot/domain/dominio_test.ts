@@ -35,7 +35,7 @@ Deno.test("wizard: completa depois de escolher área, atividade, classe e tier",
   let e = estadoInicial();
   e = aplicarSelecao(e, "areas", ["PVE"]);
   e = aplicarSelecao(e, "atividades", ["DG Grupo"]);
-  e = aplicarSelecao(e, "classes", ["BADÔNICO"]);
+  e = aplicarSelecao(e, "classes", ["NATUREZA (QUALQUER)"]);
   e = aplicarSelecao(e, "tier", ["T7"]);
   assertEquals(wizardCompleto(e), true);
 });
@@ -44,9 +44,9 @@ Deno.test("wizard: valores fora da lista são ignorados (payload não é confiá
   let e = aplicarSelecao(estadoInicial(), "areas", ["PVE", "INVENTADA"]);
   assertEquals(e.areas, ["PVE"]);
   e = aplicarSelecao(e, "atividades", ["DG Grupo", "hack", "<@123>"]);
-  e = aplicarSelecao(e, "classes", ["BADÔNICO", "CLASSE_FALSA"]);
+  e = aplicarSelecao(e, "classes", ["NATUREZA (QUALQUER)", "CLASSE_FALSA"]);
   assertEquals(e.atividades, ["DG Grupo"]);
-  assertEquals(e.classes, ["BADÔNICO"]);
+  assertEquals(e.classes, ["NATUREZA (QUALQUER)"]);
 });
 
 Deno.test("wizard: atividade de outra área é recusada (Guerra de Facção não é PVE)", () => {
@@ -102,7 +102,7 @@ Deno.test("wizard: respeita o máximo de atividades e classes e remove repetidos
   e = aplicarSelecao(e, "atividades", Array(10).fill("DG Grupo"));
   assertEquals(e.atividades, ["DG Grupo"]);
   e = aplicarSelecao(e, "areas", ["PVE", "PVP", "FAC", "AVALON"]);
-  e = aplicarSelecao(e, "classes", ["TANK", "DPS", "SCOUT", "PRISMA", "NATUREZA"]);
+  e = aplicarSelecao(e, "classes", ["TANK", "DPS", "SUPORTE", "ARCO (QUALQUER)", "NATUREZA (QUALQUER)"]);
   assertEquals(e.classes.length, MAX_CLASSES);
   e = aplicarSelecao(e, "atividades", [
     "DG Grupo", "DG Fixa", "Caçada", "Guerra de Facção", "Roaming/Gank", "Apagas", "Spec de arma",
@@ -150,12 +150,12 @@ Deno.test("controle: sem disponibilidade mostra ⚪ e desabilita 'Sair da lista'
 
 Deno.test("controle: disponível mostra os dados, vira 'Alterar' e habilita sair", () => {
   const { embed, components } = montarControle(
-    { areas: ["PVE"], atividades: ["DG Grupo"], classes: ["BADÔNICO"], tier: "T7", expiraEm: AGORA + 3_600_000 },
+    { areas: ["PVE"], atividades: ["DG Grupo"], classes: ["NATUREZA (QUALQUER)"], tier: "T7", expiraEm: AGORA + 3_600_000 },
     AGORA,
   );
   assert(embed.description!.includes("Disponível"));
   assert(embed.description!.includes("PVE")); // área
-  assert(embed.description!.includes("BADÔNICO"));
+  assert(embed.description!.includes("NATUREZA (QUALQUER)"));
   assert(embed.description!.includes("T7"));
   const botoes = components[0].components;
   assertEquals("label" in botoes[0] && botoes[0].label, "Alterar");

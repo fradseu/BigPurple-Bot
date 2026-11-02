@@ -80,7 +80,7 @@ export function handleBtnPasso3(interaction: DiscordInteraction): HandlerResult 
 
       const emojisGuilda = guildId ? await buscarEmojisDaGuilda(guildId) : [];
       const mapaEmojis = montarMapaEmojis(emojisGuilda);
-      await editarRespostaOriginal(applicationId, token, montarPayloadPasso3Selecao(mapaEmojis));
+      await editarRespostaOriginal(applicationId, token, montarPayloadPasso3Selecao(dados, mapaEmojis));
     },
   };
 }

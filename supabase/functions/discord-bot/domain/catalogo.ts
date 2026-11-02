@@ -11,6 +11,7 @@ import {
   actionRow,
 } from "../discord/types.ts";
 import { chaveFuncao, ehLinhaCriador } from "./vagas.ts";
+import { classeAtendeVaga } from "../../_shared/armas.ts";
 
 const MAX_OPCOES_DISCORD = 25;
 
@@ -128,9 +129,9 @@ export function montarCatalogo(params: {
   const ordenados = [...candidatos].sort((a, b) => a.criadoEmMs - b.criadoEmMs); // quem espera há mais tempo primeiro
   for (const c of ordenados) {
     if (c.userId === liderId || naPT.has(c.userId) || jaConvidados.has(c.id)) continue;
-    const chavesDele = new Set(c.classes.map(chaveFuncao));
+    // Quem marcou a árvore inteira no Pool ("NATUREZA (QUALQUER)") serve pra qualquer arma dela.
     for (const vaga of abertas) {
-      if (!chavesDele.has(vaga.chave)) continue;
+      if (!c.classes.some((cl) => classeAtendeVaga(cl, vaga.rotulo))) continue;
       opcoes.push({
         disponibilidadeId: c.id,
         codigo: c.codigo,
@@ -156,7 +157,6 @@ export function montarOutrasClasses(params: {
   agoraMs: number;
 }): OpcaoCatalogo[] {
   const { candidatos, abertas, liderId, naPT, jaConvidados, agoraMs } = params;
-  const chavesAbertas = new Set(abertas.map((v) => v.chave));
   const opcoes: OpcaoCatalogo[] = [];
 
   const ordenados = [...candidatos].sort((a, b) => a.criadoEmMs - b.criadoEmMs);
@@ -165,7 +165,8 @@ export function montarOutrasClasses(params: {
     const vistas = new Set<string>();
     for (const classe of c.classes) {
       const chave = chaveFuncao(classe);
-      if (!chave || chavesAbertas.has(chave) || vistas.has(chave)) continue; // classe COM vaga livre não entra aqui
+      if (!chave || vistas.has(chave)) continue;
+      if (abertas.some((v) => classeAtendeVaga(classe, v.rotulo))) continue; // classe COM vaga livre não entra aqui
       vistas.add(chave);
       opcoes.push({
         disponibilidadeId: c.id,

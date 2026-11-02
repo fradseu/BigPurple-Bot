@@ -37,8 +37,13 @@ import {
 } from "./handlers/passo2.ts";
 import {
   handleAjusteQuantidade,
+  handleDefinirQuantidades,
+  handleEscolherArvore,
   handleFocarClasse,
+  handleLimparClasses,
+  handleSelecionarArmas,
   handleSelecionarClasses,
+  handleSelecionarFuncoes,
   handleVoltarClasses,
 } from "./handlers/passo3.ts";
 import { handleGerarPainelFinal } from "./handlers/painelFinal.ts";
@@ -175,7 +180,12 @@ async function rotear(interaction: DiscordInteraction): Promise<HandlerResult> {
     if (customId === "btn_passo3") return await handleBtnPasso3(interaction);
 
     // --- Passo 3 ---
-    if (customId === "selecionar_classes_da_pt") return await handleSelecionarClasses(interaction);
+    if (customId === "selecionar_classes_da_pt") return await handleSelecionarClasses(interaction); // telas antigas
+    if (customId === "selecionar_funcoes") return handleSelecionarFuncoes(interaction);
+    if (customId === "escolher_arvore") return handleEscolherArvore(interaction);
+    if (customId === "selecionar_armas") return handleSelecionarArmas(interaction);
+    if (customId === "btn_limpar_classes") return handleLimparClasses(interaction);
+    if (customId === "btn_definir_quantidades") return handleDefinirQuantidades(interaction);
     if (customId === "focar_classe_select") {
       return await handleFocarClasse(interaction, interaction.data?.values?.[0] ?? "");
     }
