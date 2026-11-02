@@ -98,6 +98,16 @@ Deno.test("kill: menção no texto da mensagem, nome do jogo no embed, link do e
   assertEquals(embed.thumbnail?.url, "https://render.albiononline.com/v1/item/T8_MAIN_SWORD%403.png");
 });
 
+Deno.test("vítima sem arma: imagem com a arma do matador", () => {
+  const acompanhados = new Map([["K", "111"]]);
+  const e = evento({
+    Killer: { Id: "K", Name: "Matador", Equipment: { MainHand: { Type: "T6_2H_AXE" } } },
+    Victim: { Id: "V", Name: "Pelado", Equipment: { MainHand: null } },
+  });
+  const embed = montarEmbedEvento(e, classificarEvento(e, acompanhados)!);
+  assertEquals(embed.thumbnail?.url, "https://render.albiononline.com/v1/item/T6_2H_AXE.png");
+});
+
 Deno.test("embed de morte", () => {
   const acompanhados = new Map([["V", "222"]]);
   const e = evento();
