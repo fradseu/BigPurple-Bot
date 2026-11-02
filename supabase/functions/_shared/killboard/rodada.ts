@@ -2,6 +2,9 @@
 //   rodarKillboard()   — a cada 5 min: posta kills, mortes e assistências novas dos Membros.
 //   postarRankings()   — toda segunda: posta o top 10 dos últimos 30 dias em cada canal ativo.
 import { buscarEventosDaGuilda } from "./albion.ts";
+
+// Até 6 páginas (306 eventos) para recuperar horas de API fora do ar.
+const PAGINAS_MAXIMAS = 6;
 import {
   cargoMembroDoRecrutamento,
   ConfigKillboard,
@@ -32,7 +35,7 @@ const MAX_POSTS_POR_EXECUCAO = 15;
 // Respeita o limite do Discord (5 mensagens / 5 s por canal) com folga.
 const PAUSA_ENTRE_POSTS_MS = 1_200;
 // Nunca posta evento mais velho que isso, mesmo que o killboard tenha ficado parado.
-const JANELA_MAXIMA_MS = 24 * 60 * 60 * 1000;
+const JANELA_MAXIMA_MS = 48 * 60 * 60 * 1000; // cobre um dia inteiro de API fora do ar
 // Período do ranking (o registro de postados é guardado por 30 dias).
 export const DIAS_RANKING = 30;
 
@@ -53,8 +56,12 @@ async function rodarServidor(cfg: ConfigKillboard): Promise<ResultadoKillboard> 
   // Vínculo Discord <-> Albion: 1º o do recrutamento; quem não tiver, pelo apelido (abaixo).
   const vinculos = await vinculosAprovados(cfg.guild_id);
 
-  const eventos = await buscarEventosDaGuilda(guilda.id);
   const desde = new Date(Math.max(new Date(cfg.ativado_em).getTime(), Date.now() - JANELA_MAXIMA_MS));
+  // Continua lendo páginas enquanto nenhuma delas tiver evento já postado nem passar de `desde`.
+  const eventos = await buscarEventosDaGuilda(guilda.id, PAGINAS_MAXIMAS, async (pagina) => {
+    if (pagina.some((e) => new Date(e.TimeStamp) < desde)) return true;
+    return (await eventosJaPostados(cfg.guild_id, pagina.map((e) => e.EventId))).size > 0;
+  });
   const jaPostados = await eventosJaPostados(cfg.guild_id, eventos.map((e) => e.EventId));
   const candidatos = eventosParaPostar(eventos, jaPostados, desde, eventos.length);
 
