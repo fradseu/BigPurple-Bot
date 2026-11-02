@@ -27,15 +27,28 @@ async function buscarJson<T>(caminho: string): Promise<T> {
 }
 
 // Eventos em que alguém da guilda matou ou morreu, do mais recente pro mais antigo.
-// `paginas` > 1 só se a guilda fizer mais de 51 eventos entre duas execuções.
-export async function buscarEventosDaGuilda(albionGuildId: string, paginas = 1): Promise<EventoAlbion[]> {
+// Lê página por página até `chegou(pagina)` dizer que já alcançou o que foi postado antes
+// (ou até `paginas`). Assim, quando a API volta depois de horas fora, recupera o atraso em vez
+// de olhar só os 51 últimos. Se uma página seguinte falhar, devolve o que já leu.
+export async function buscarEventosDaGuilda(
+  albionGuildId: string,
+  paginas = 1,
+  chegou: (pagina: EventoAlbion[]) => Promise<boolean> | boolean = () => false,
+): Promise<EventoAlbion[]> {
   const todos: EventoAlbion[] = [];
   for (let p = 0; p < paginas; p++) {
-    const pagina = await buscarJson<EventoAlbion[]>(
-      `/events?limit=${POR_PAGINA}&offset=${p * POR_PAGINA}&guildId=${encodeURIComponent(albionGuildId)}`,
-    );
+    let pagina: EventoAlbion[];
+    try {
+      pagina = await buscarJson<EventoAlbion[]>(
+        `/events?limit=${POR_PAGINA}&offset=${p * POR_PAGINA}&guildId=${encodeURIComponent(albionGuildId)}`,
+      );
+    } catch (err) {
+      if (p === 0) throw err;
+      console.error(`Página ${p + 1} de eventos falhou; seguindo com ${todos.length} eventos.`, err);
+      break;
+    }
     todos.push(...pagina);
-    if (pagina.length < POR_PAGINA) break;
+    if (pagina.length < POR_PAGINA || (await chegou(pagina))) break;
   }
   return todos;
 }
