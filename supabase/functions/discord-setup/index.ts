@@ -6,9 +6,12 @@
 //   leitura. Tenta a listagem completa; se o bot não tiver a intent de membros, busca nome por nome.
 //   POST /internal/dar-cargo  {"guild_id", "cargo_id", "usuarios": [...]} — adiciona um cargo usando
 //   o token do bot de RECRUTAMENTO (é ele que tem "Gerenciar cargos" acima do cargo Membro).
+//   POST /internal/reescrever-kills  {"guild_id"} — reescreve as mensagens já postadas no killboard
+//   com o layout atual (nomes do jogo no lugar de menções), usando killboard_postados.nomes.
 // Protegida pelo segredo interno (public.bot_segredos 'interno').
 import { discord } from "../_shared/killboard/discord.ts";
 import { segredoInterno, segredosIguais } from "../_shared/killboard/segredo.ts";
+import { createClient } from "@supabase/supabase-js";
 
 const CATEGORIA = "🟣Ferramentas Big Purple";
 const CANAL = "⚔️・killboard";
@@ -117,8 +120,54 @@ async function darCargo(guildId: string, cargoId: string, usuarios: string[]) {
   return resultado;
 }
 
+interface Postado { event_id: number; tipo: string; mensagem_id: string | null; nomes: string[] }
+
+async function reescreverKills(guildId: string) {
+  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
+    auth: { persistSession: false },
+  });
+  const { data: cfg } = await db.from("killboard_config").select("canal_id").eq("guild_id", guildId).single();
+  const { data, error } = await db.from("killboard_postados").select("event_id, tipo, mensagem_id, nomes")
+    .eq("guild_id", guildId).not("mensagem_id", "is", null);
+  if (error || !cfg) throw new Error(`Erro ao ler postados: ${error?.message}`);
+  const rotulos: Record<string, string> = { kill: "Kill de", morte: "Morte de", assistencia: "Assistência de" };
+  const resultado: Record<string, string> = {};
+  for (const p of (data ?? []) as Postado[]) {
+    try {
+      const msg = await discord<{ embeds: Array<Record<string, unknown>> }>(
+        `/channels/${cfg.canal_id}/messages/${p.mensagem_id}`,
+      );
+      const embed = { ...msg.embeds[0], description: `${rotulos[p.tipo]} ${p.nomes.map((n) => `**${n}**`).join(", ")}` };
+      // Campos que o Discord devolve mas não aceita de volta.
+      for (const k of ["type", "content_scan_version"]) delete (embed as Record<string, unknown>)[k];
+      await discord(`/channels/${cfg.canal_id}/messages/${p.mensagem_id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ content: "", embeds: [embed], allowed_mentions: { parse: [] } }),
+      });
+      resultado[String(p.event_id)] = "ok";
+    } catch (err) {
+      resultado[String(p.event_id)] = err instanceof Error ? err.message : String(err);
+    }
+    await new Promise((r) => setTimeout(r, 1_100));
+  }
+  return resultado;
+}
+
 Deno.serve(async (req: Request) => {
   const caminho = new URL(req.url).pathname;
+  if (req.method === "POST" && caminho.endsWith("/internal/reescrever-kills")) {
+    const esperado = await segredoInterno();
+    if (!esperado || !segredosIguais(esperado, req.headers.get("x-cron-secret") ?? "")) {
+      return new Response("unauthorized", { status: 401 });
+    }
+    const { guild_id } = await req.json().catch(() => ({})) as { guild_id?: string };
+    if (!guild_id) return json({ erro: "guild_id obrigatório" }, 400);
+    try {
+      return json(await reescreverKills(guild_id));
+    } catch (err) {
+      return json({ erro: err instanceof Error ? err.message : String(err) }, 500);
+    }
+  }
   if (req.method === "POST" && caminho.endsWith("/internal/dar-cargo")) {
     const esperado = await segredoInterno();
     if (!esperado || !segredosIguais(esperado, req.headers.get("x-cron-secret") ?? "")) {
