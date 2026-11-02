@@ -438,3 +438,7 @@ verify_jwt = false
 [functions.discord-setup]
 # Manutenção pontual do servidor (rota interna protegida pelo segredo interno).
 verify_jwt = false
+
+[functions.killboard-imagem]
+# Pública e só leitura: devolve a imagem do card de uma kill já postada.
+verify_jwt = false

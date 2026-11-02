@@ -7,6 +7,7 @@ export interface DiscordEmbed {
   description?: string;
   color?: number;
   thumbnail?: { url: string };
+  image?: { url: string };
   fields?: Array<{ name: string; value: string; inline?: boolean }>;
   timestamp?: string;
   footer?: { text: string };
@@ -91,12 +92,6 @@ export function formatarFama(n: number | undefined): string {
   return String(v);
 }
 
-function nomeComGuilda(j: JogadorEvento): string {
-  const guilda = j.GuildName ? ` [${j.GuildName}]` : "";
-  const ip = j.AverageItemPower ? ` · IP ${Math.round(j.AverageItemPower)}` : "";
-  return `**${j.Name}**${guilda}${ip}`;
-}
-
 // Sem menções (@): fora do cache do aparelho o Discord mostra "usuário-desconhecido". Mostramos
 // sempre o nome do jogo, que é igual para todo mundo e não notifica ninguém.
 export function nomesDosMembros(evento: EventoAlbion, c: Classificacao): string[] {
@@ -118,11 +113,13 @@ export function urlItem(tipo: string): string {
   return `https://render.albiononline.com/v1/item/${encodeURIComponent(tipo)}.png`;
 }
 
+// Endereço público da imagem "Detalhes do abate" (function killboard-imagem).
+export function urlCard(eventId: number): string {
+  return `https://qroosefyfxefjrlhogrh.supabase.co/functions/v1/killboard-imagem/${eventId}.png`;
+}
+
 export function montarEmbedEvento(evento: EventoAlbion, c: Classificacao): DiscordEmbed {
-  const nomes = new Map<string, string>(
-    [evento.Killer, evento.Victim, ...(evento.Participants ?? [])].map((j) => [j.Id, j.Name]),
-  );
-  const quem = c.membros.map((id) => `**${nomes.get(id) ?? id}**`).join(", ");
+  const quem = nomesDosMembros(evento, c).map((n) => `**${n}**`).join(", ");
 
   const titulo = c.tipo === "kill"
     ? `⚔️ ${evento.Killer.Name} matou ${evento.Victim.Name}`
@@ -131,24 +128,14 @@ export function montarEmbedEvento(evento: EventoAlbion, c: Classificacao): Disco
     : `🤝 Assistência no abate de ${evento.Victim.Name}`;
 
   const rotulo = c.tipo === "kill" ? "Kill de" : c.tipo === "morte" ? "Morte de" : "Assistência de";
-  const participantes = evento.numberOfParticipants ?? evento.Participants?.length ?? 1;
 
-  // Imagem: arma da vítima (na morte, a do matador). Se não tiver (vítima sem arma), usa a do outro.
-  const [principal, reserva] = c.tipo === "morte" ? [evento.Killer, evento.Victim] : [evento.Victim, evento.Killer];
-  const arma = principal.Equipment?.MainHand?.Type ?? reserva.Equipment?.MainHand?.Type;
-
+  // O card (equipamento dos dois, IP, fama) vai na imagem; o texto fica curto.
   return {
     title: titulo,
     url: urlEvento(evento.EventId),
     color: c.tipo === "kill" ? COR_KILL : c.tipo === "morte" ? COR_MORTE : COR_ASSISTENCIA,
     description: `${rotulo} ${quem}`,
-    fields: [
-      { name: "Matador", value: nomeComGuilda(evento.Killer), inline: true },
-      { name: "Vítima", value: nomeComGuilda(evento.Victim), inline: true },
-      { name: "Fama", value: formatarFama(evento.TotalVictimKillFame), inline: true },
-      { name: "Participantes", value: String(participantes), inline: true },
-    ],
-    thumbnail: arma ? { url: urlItem(arma) } : undefined,
+    image: { url: urlCard(evento.EventId) },
     timestamp: new Date(evento.TimeStamp).toISOString(),
     footer: { text: `Killboard Big Purple · evento ${evento.EventId}` },
   };

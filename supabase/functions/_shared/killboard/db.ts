@@ -135,3 +135,10 @@ export async function postadosRecentes(guildId: string, dias: number): Promise<L
   return ((data ?? []) as Array<{ tipo: TipoEvento; fama: number; discord_ids: string[]; nomes: string[] }>)
     .map((l) => ({ tipo: l.tipo, fama: Number(l.fama), discordIds: l.discord_ids ?? [], nomes: l.nomes ?? [] }));
 }
+
+// Evento completo (equipamento etc.) para a imagem do card. Gravado ANTES de postar: o Discord busca
+// a imagem assim que a mensagem chega.
+export async function guardarEvento(evento: { EventId: number }): Promise<void> {
+  const { error } = await db().from("killboard_eventos").upsert({ event_id: evento.EventId, evento });
+  if (error) throw new Error(`Erro ao gravar killboard_eventos: ${error.message}`);
+}
