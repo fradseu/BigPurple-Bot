@@ -22,6 +22,10 @@ export interface DadosWizard {
   // Opcionais: sessões criadas antes da troca não têm.
   arvoreAberta?: string | null;
   emQuantidades?: boolean;
+  // /conteudo simplificado: tipo (PVE/PVP/FAC/AVALON) decide o canal de ping; slotPing é onde
+  // o ping fica salvo ao gerar o painel (1 ou 2).
+  tipo?: string;
+  slotPing?: number | null;
 }
 
 export function estadoInicial(canalId: string): DadosWizard {

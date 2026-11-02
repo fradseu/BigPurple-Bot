@@ -127,3 +127,17 @@ Deno.test("agregar e substituir não alteram o array original (puras)", () => {
   assertEquals(LINHAS, copia);
 });
 
+
+import { aplicarRole, linhasDosJogadores, liberarLinha, roleDaLinha } from "./vagas.ts";
+
+Deno.test("role no painel: marca, troca, tira e some ao liberar a vaga", () => {
+  const linha = "(1/1) 🌿 BASTÃO DA NATUREZA <@123> ⚗️ ";
+  const comHealer = aplicarRole(linha, "HEALER");
+  assertEquals(comHealer, "(1/1) 🌿 BASTÃO DA NATUREZA <@123> `HEALER` ⚗️ ");
+  assertEquals(roleDaLinha(comHealer), "HEALER");
+  const comOff = aplicarRole(comHealer, "OFF TANK");
+  assertEquals(roleDaLinha(comOff), "OFF TANK");
+  assertEquals(aplicarRole(comOff, null), linha);
+  assertEquals(liberarLinha(comOff), "(0/1) 🌿 BASTÃO DA NATUREZA ");
+  assertEquals(linhasDosJogadores(["👑 Criador: <@123>", "(0/1) X ", comOff], ["<@123>"]), [2]);
+});

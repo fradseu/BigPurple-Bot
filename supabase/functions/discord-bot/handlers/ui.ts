@@ -2,8 +2,9 @@
 // funções auxiliares soltas no fim do index.js do v1: montarPayloadPasso1,
 // montarBotoesBonus, atualizarComponentesPainel, renderizarPasso2/3).
 
-import { ATIVIDADES, BONUS, CIDADES, ZONAS } from "../config.ts";
-import { ARVORES, classeDaArma, classeGenericaDaArvore, CLASSES_FUNCOES } from "../../_shared/armas.ts";
+import { BONUS, ROLES_PAINEL, TIPOS_CONTEUDO } from "../config.ts";
+import { PingSalvo } from "../db/pings.ts";
+import { ARVORES, classeDaArma, classeGenericaDaArvore } from "../../_shared/armas.ts";
 import { buscarMembro, nomeExibicaoMembro } from "../discord/rest.ts";
 import {
   ActionRowComponent,
@@ -44,65 +45,103 @@ function opcoesParaSelect(
 // ---------------------------------------------------------------------------
 // PASSO 1
 // ---------------------------------------------------------------------------
+export function rotuloTipo(tipo: string | undefined): string {
+  const t = TIPOS_CONTEUDO.find((x) => x.value === tipo);
+  return t ? `${t.emoji} ${t.label}` : "";
+}
+
+// Resumo do que já foi definido (usado no topo das telas do /conteudo).
+function resumoConteudo(dados: DadosWizard): string {
+  const titulo = dados.titulo ? `**${dados.titulo}**` : "*(automático: tipo + data/hora)*";
+  const quando = dados.data || dados.hora ? `${dados.data || "(sem data)"} às ${dados.hora || "(sem hora)"}` : "*(não definida)*";
+  const vagas = Object.entries(dados.funcoes).filter(([, q]) => q > 0);
+  const total = vagas.reduce((n, [, q]) => n + q, 0);
+  return (
+    `📌 Título: ${titulo}\n` +
+    `🗓️ Data/Hora: ${quando}\n` +
+    `🧭 Tipo: ${rotuloTipo(dados.tipo) || "*(escolha abaixo)*"}\n` +
+    (total ? `⚔️ Armas: ${vagas.length} (${total} vagas)\n` : "") +
+    requisitosTexto(dados)
+  );
+}
+
+// Requisitos só aparecem quando o líder definiu algum (Tier/Skip são opcionais).
+export function requisitosTexto(dados: DadosWizard): string {
+  const partes: string[] = [];
+  if (dados.temTier && dados.tier && dados.tier !== "Livre") partes.push(`Tier ${dados.tier}`);
+  if (dados.precisaSkip) partes.push("Set de Skip T4");
+  return partes.length ? `⚙️ Requisitos: ${partes.join(" · ")}\n` : "";
+}
+
+// Tela inicial quando o jogador já tem pings salvos: usar um deles ou criar um novo.
+export function montarPayloadEscolhaPing(pings: PingSalvo[], livre: number | null): InteractionCallbackData {
+  const linhas = pings.map((p) => {
+    const vagas = Object.entries(p.funcoes).filter(([, q]) => q > 0);
+    const total = vagas.reduce((n, [, q]) => n + q, 0);
+    return `**${p.slot}.** ${p.titulo || "(sem título)"} — ${vagas.length} arma(s), ${total} vaga(s)`;
+  });
+  const usar: ButtonComponent[] = pings.map((p) => ({
+    type: 2 as const,
+    custom_id: `ping_usar_${p.slot}`,
+    label: `▶️ Usar ping ${p.slot}`.slice(0, 80),
+    style: ButtonStyle.Success,
+  }));
+  const novo: ButtonComponent[] = livre
+    ? [{ type: 2 as const, custom_id: `ping_novo_${livre}`, label: "➕ Criar novo", style: ButtonStyle.Primary }]
+    : pings.map((p) => ({
+      type: 2 as const,
+      custom_id: `ping_novo_${p.slot}`,
+      label: `➕ Novo (substitui o ${p.slot})`,
+      style: ButtonStyle.Secondary,
+    }));
+  return {
+    content: `📣 **Seus pings salvos**\n${linhas.join("\n")}\n\nUse um deles (só escolhe tipo, data e hora) ou crie um novo.`,
+    components: [actionRow(...usar), actionRow(...novo)],
+  };
+}
+
+// Passo 1: tipo (decide o canal) + título/data/hora; requisitos são opcionais.
 export function montarPayloadPasso1(dados: DadosWizard): InteractionCallbackData {
-  const menuAtividades = {
+  const menuTipo = {
     type: 3 as const,
-    custom_id: "config_atividade",
-    placeholder: "⚔️ Selecione as atividades (Multi-select)",
-    min_values: 1,
-    max_values: 4,
-    options: opcoesParaSelect(ATIVIDADES, dados.atividades),
-  };
-
-  const menuCidades = {
-    type: 3 as const,
-    custom_id: "config_cidade",
-    placeholder: "📍 Selecione a Cidade de Encontro",
-    options: opcoesParaSelect(CIDADES, dados.cidade ? [dados.cidade] : []),
-  };
-
-  const menuZonas = {
-    type: 3 as const,
-    custom_id: "config_zona",
-    placeholder: "🗺️ Selecione o Tipo de Zona (Amarela/Red/Black)",
-    options: opcoesParaSelect(ZONAS, dados.zona ? [dados.zona] : []),
+    custom_id: "config_tipo",
+    placeholder: "🧭 Tipo do conteúdo (define o canal de ping)",
+    options: TIPOS_CONTEUDO.map((t) => ({
+      label: t.label,
+      value: t.value,
+      emoji: { name: t.emoji },
+      default: t.value === dados.tipo,
+    })),
   };
 
   const temDetalhes = dados.titulo || dados.data || dados.hora;
-  const botaoTitulo = {
-    type: 2 as const,
-    style: ButtonStyle.Secondary,
-    custom_id: "btn_definir_titulo",
-    label: temDetalhes ? "✏️ Editar Título/Data/Hora" : "✏️ Definir Título/Data/Hora (Opcional)",
-  };
-
-  const botaoAvancar = {
-    type: 2 as const,
-    style: ButtonStyle.Success,
-    custom_id: "btn_passo2",
-    label: "Avançar para Requisitos ➡️",
-  };
-
-  const tituloExibido = dados.titulo
-    ? `**${dados.titulo}**`
-    : "*(usando o título padrão 🔱 PROMPT DE CONTEÚDO)*";
-  const dataHoraExibida =
-    dados.data || dados.hora
-      ? `${dados.data || "(sem data)"} às ${dados.hora || "(sem hora)"}`
-      : "*(não definida)*";
+  const temArmas = Object.values(dados.funcoes).some((q) => q > 0);
 
   return {
-    content:
-      `🛠️ **PASSO 1: Configuração Inicial**\n` +
-      `📌 Título: ${tituloExibido}\n` +
-      `🗓️ Data/Hora: ${dataHoraExibida}\n\n` +
-      `Defina os parâmetros do conteúdo usando os menus abaixo e clique em Avançar:`,
+    content: `🛠️ **Novo conteúdo**\n${resumoConteudo(dados)}\nEscolha o tipo, ajuste título/data/hora e avance para as armas:`,
     components: [
-      actionRow(botaoTitulo),
-      actionRow(menuAtividades),
-      actionRow(menuCidades),
-      actionRow(menuZonas),
-      actionRow(botaoAvancar),
+      actionRow(menuTipo),
+      actionRow(
+        {
+          type: 2 as const,
+          style: ButtonStyle.Secondary,
+          custom_id: "btn_definir_titulo",
+          label: temDetalhes ? "✏️ Editar Título/Data/Hora" : "✏️ Título/Data/Hora",
+        },
+        {
+          type: 2 as const,
+          style: ButtonStyle.Secondary,
+          custom_id: "btn_requisitos",
+          label: "⚙️ Requisitos (opcional)",
+        },
+      ),
+      actionRow({
+        type: 2 as const,
+        style: ButtonStyle.Success,
+        custom_id: "btn_passo2",
+        label: temArmas ? "Avançar para as armas ➡️" : "Escolher as armas ➡️",
+        disabled: !dados.tipo,
+      }),
     ],
   };
 }
@@ -205,24 +244,20 @@ export function montarPayloadPasso2(dados: DadosWizard): InteractionCallbackData
     ),
   );
 
-  const pronto = dados.temTier !== null && dados.precisaSkip !== null;
-
   rows.push(
     actionRow({
       type: 2 as const,
-      custom_id: "btn_passo3",
-      label: "Avançar para Montar a PT ➡️",
+      custom_id: "btn_voltar_passo1",
+      label: "⬅️ Voltar",
       style: ButtonStyle.Success,
-      disabled: !pronto,
     }),
   );
 
-  const setSkipTexto =
-    dados.precisaSkip === null ? "Pendente" : dados.precisaSkip ? "Obrigatório T4+" : "Dispensado";
+  const setSkipTexto = dados.precisaSkip ? "Obrigatório T4+" : "Dispensado";
 
   return {
     content:
-      `🛠 **PASSO 2: Requisitos de Entrada**\n` +
+      `⚙️ **Requisitos (opcional)**\n` +
       `• Tier Mínimo: **${dados.tier}**\n` +
       `• Set de Skip: **${setSkipTexto}**`,
     components: rows,
@@ -235,7 +270,7 @@ export function montarPayloadPasso2(dados: DadosWizard): InteractionCallbackData
 // Limite do Discord: o seletor de foco da tela de quantidades aceita até 25 classes.
 export const MAX_CLASSES_PT = 25;
 
-// Passo 3 (escolha): funções genéricas + árvore → armas. As classes escolhidas se acumulam
+// Passo 3 (escolha): árvore → armas (a função de cada um é marcada depois, no painel). As classes escolhidas se acumulam
 // entre as árvores; "Definir quantidades" leva ao painel de +/-.
 export function montarPayloadPasso3Selecao(
   dados: DadosWizard,
@@ -243,11 +278,6 @@ export function montarPayloadPasso3Selecao(
 ): InteractionCallbackData {
   const escolhidas = new Set(dados.classesAtivas ?? []);
   const arvore = ARVORES.find((a) => a.chave === dados.arvoreAberta) ?? null;
-
-  const opcoesFuncoes: SelectOption[] = CLASSES_FUNCOES.map((classe) => {
-    const { nome, emoji } = parseClasseComEmoji(classe, emojisResolvidos);
-    return { label: nome, value: classe, emoji: emojiParaComponente(emoji), default: escolhidas.has(classe) };
-  });
 
   const opcoesArvores: SelectOption[] = ARVORES.map((a) => {
     const naArvore = [classeGenericaDaArvore(a), ...a.armas.map((arma) => classeDaArma(a, arma))]
@@ -264,14 +294,6 @@ export function montarPayloadPasso3Selecao(
   const resumo = [...escolhidas].sort(compararClasses).map((c) => formatarClasseParaMensagem(c, emojisResolvidos));
 
   const linhas: ActionRowComponent[] = [
-    actionRow({
-      type: 3 as const,
-      custom_id: "selecionar_funcoes",
-      placeholder: "🧭 Funções genéricas (qualquer arma que faça a função)",
-      min_values: 0,
-      max_values: opcoesFuncoes.length,
-      options: opcoesFuncoes,
-    }),
     actionRow({
       type: 3 as const,
       custom_id: "escolher_arvore",
@@ -306,6 +328,12 @@ export function montarPayloadPasso3Selecao(
     actionRow(
       {
         type: 2 as const,
+        custom_id: "btn_voltar_passo1",
+        label: "⬅️ Voltar",
+        style: ButtonStyle.Secondary,
+      },
+      {
+        type: 2 as const,
         custom_id: "btn_limpar_classes",
         label: "🧹 Limpar escolhas",
         style: ButtonStyle.Secondary,
@@ -323,8 +351,8 @@ export function montarPayloadPasso3Selecao(
 
   return {
     content:
-      `🛠️ **PASSO 3: Composição da PT**\n` +
-      `Escolha as **funções** e/ou abra uma **árvore** pra marcar as armas. As escolhas se somam entre as árvores ` +
+      `⚔️ **Armas da PT**\n` +
+      `Abra uma **árvore** e marque as armas. As escolhas se somam entre as árvores ` +
       `(máximo ${MAX_CLASSES_PT}).\n\n` +
       `**Escolhidas (${escolhidas.size}/${MAX_CLASSES_PT}):** ` +
       (resumo.length ? resumo.join(", ") : "_nenhuma ainda_"),
@@ -396,7 +424,7 @@ export function montarPayloadPasso3Painel(
       {
         type: 2 as const,
         custom_id: "btn_voltar_classes",
-        label: "🔄 Mudar classes",
+        label: "🔄 Mudar armas",
         style: ButtonStyle.Secondary,
       },
       {
@@ -410,8 +438,8 @@ export function montarPayloadPasso3Painel(
 
   return {
     content:
-      `🛠️ **PASSO 3: Painel de Vagas da PT**\n` +
-      `Selecione a classe nos botões abaixo para ver os controles de ajuste individual:\n\n` +
+      `🔢 **Quantidade de cada arma**\n` +
+      `Escolha a arma no menu e ajuste com ➖/➕:\n\n` +
       `➡️ **Modificando agora:** ${parseClasseComEmoji(classeFocada, emojisResolvidos).nome}\n`,
     components: linhasBotoes,
   };
@@ -420,6 +448,20 @@ export function montarPayloadPasso3Painel(
 // ---------------------------------------------------------------------------
 // PAINEL PÚBLICO (bônus + reconstrução de componentes após inscrição/kick)
 // ---------------------------------------------------------------------------
+// Select de função (Healer/Tank/...): cada um marca a própria; o líder pode marcar a de outros.
+export const ID_ROLE_PAINEL = "vaga_role";
+export function montarSelectRole(): ActionRowComponent {
+  return actionRow({
+    type: 3 as const,
+    custom_id: ID_ROLE_PAINEL,
+    placeholder: "🎭 Sua função na PT (Healer, Tank, DPS...)",
+    options: [
+      ...ROLES_PAINEL.map((r) => ({ label: r.label, value: r.value, emoji: { name: r.emoji } })),
+      { label: "Tirar função", value: "-", emoji: { name: "🚫" } },
+    ],
+  });
+}
+
 export function montarBotoesBonus(): ActionRowComponent {
   return actionRow(
     ...BONUS.map((b) => ({
@@ -499,6 +541,7 @@ export async function atualizarComponentesPainel(
   const rowDesistirESala = actionRow(...botoesDesistirESala);
 
   componentes.push(montarBotoesBonus());
+  componentes.push(montarSelectRole());
 
   const jogadores = listarJogadoresInscritos(linhasVagas);
 

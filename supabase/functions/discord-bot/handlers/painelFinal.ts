@@ -28,7 +28,9 @@ import {
   getInteractionUserId,
 } from "../discord/types.ts";
 import { apagarEstadoWizard, DadosWizard, obterEstadoWizard } from "../db/ptWizard.ts";
-import { ZONAS } from "../config.ts";
+import { TIPOS_CONTEUDO } from "../config.ts";
+import { salvarPing } from "../db/pings.ts";
+import { obterConfigPool } from "../db/pool.ts";
 import {
   aplicarEmojisNoTexto,
   compararClasses,
@@ -37,21 +39,29 @@ import {
   parseClasseComEmoji,
 } from "../domain/emoji.ts";
 import { atualizarResumoVagas, gerarLinhasDaFuncao } from "../domain/vagas.ts";
-import { calcularDificuldade } from "../domain/dificuldade.ts";
 import { ID_ABRIR_CATALOGO } from "../domain/catalogo.ts";
 import { HandlerResult } from "./context.ts";
-import { montarBotoesBonus } from "./ui.ts";
+import { montarBotoesBonus, montarSelectRole, requisitosTexto } from "./ui.ts";
+
+async function canalDoTipo(guildId: string, tipo: string): Promise<string | null> {
+  try {
+    const config = await obterConfigPool(guildId);
+    const par = Object.entries(config?.areasCanais ?? {}).find(([, area]) => area === tipo);
+    return par?.[0] ?? null;
+  } catch (err) {
+    console.error("Erro ao ler canais de ping:", err);
+    return null;
+  }
+}
 
 const SESSAO_EXPIRADA = "⚠️ Sessão expirada — use /conteudo de novo pra começar.";
 const LIMITE_EMBED_DESCRIPTION = 4096;
 
-// Quando o líder não edita o título manualmente, monta um a partir da
-// composição da PT (zona | atividades | cidade) em vez do genérico antigo —
-// fica muito mais informativo pra quem só bate o olho no canal/tópico.
+// Sem título digitado: "PvE | 02/11 às 20:30".
 function montarTituloAutomatico(dados: DadosWizard): string {
-  const zonaInfo = ZONAS.find((z) => z.value === dados.zona);
-  const zonaTexto = zonaInfo?.label ?? dados.zona;
-  return `${zonaTexto} | ${dados.atividades.join(" + ")} | ${dados.cidade}`;
+  const tipo = TIPOS_CONTEUDO.find((t) => t.value === dados.tipo)?.label ?? "Conteúdo";
+  const quando = [dados.data, dados.hora].filter(Boolean).join(" às ");
+  return quando ? `${tipo} | ${quando}` : tipo;
 }
 
 export function handleGerarPainelFinal(interaction: DiscordInteraction): HandlerResult {
@@ -108,17 +118,13 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
           ? `🗓️ **Quando:** ${dados.data || "A definir"} às ${dados.hora || "A definir"}\n`
           : "";
 
+      const requisitos = requisitosTexto(dados);
       const conteudoFinal = aplicarEmojisNoTexto(
         `**${tituloFinal}**\n` +
         `👑 Criador: <@${liderId}>\n` +
-        `📋 **Atividade:** ${dados.atividades.join(" + ")}\n` +
-        `📍 **Ponto de Encontro:** ${dados.cidade}\n` +
-        `🗺️ **Ambiente:** ${dados.zona}\n` +
         linhaDataHora +
-        `\n⚔️ **REQUISITOS MÍNIMOS:**\n` +
-        `• **Builds tier:** ${dados.tier}\n` +
-        `• **Set de Skip:** ${dados.precisaSkip ? "Obrigatório Mínimo T4" : "Dispensado"}\n\n` +
-        `💬 Escolha seu papel no dropdown abaixo. Caso desista da vaga, clique no botão ❌ Sair da PT.\n` +
+        (requisitos ? `${requisitos}` : "") +
+        `\n💬 Escolha sua arma no menu abaixo e marque sua função em 🎭. Caso desista, clique em ❌ Sair da PT.\n` +
         `@everyone`,
       );
 
@@ -150,8 +156,6 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
         style: ButtonStyle.Secondary,
       };
 
-      const dificuldadeInfo = calcularDificuldade(dados);
-
       const linhasVagasComResumo = atualizarResumoVagas(linhasVagas);
       const descriptionEmbed = aplicarEmojisNoTexto(linhasVagasComResumo.join("\n"));
 
@@ -173,13 +177,15 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
         title: "📝 Inscrições Abertas",
         description: descriptionEmbed,
       };
-      if (dificuldadeInfo) embedVagas.image = { url: dificuldadeInfo.value };
 
       // Cria o tópico ANTES de enviar o painel, e manda o painel DENTRO dele
       // — se der erro (ex: canal não suporta tópicos), cai de volta pro canal normal.
-      let canalDestinoId = dados.canalId;
+      // O tipo escolhe o canal de ping (mesmo mapa do Pool); sem mapa, fica no canal do comando.
+      const canalPing = guildId && dados.tipo ? await canalDoTipo(guildId, dados.tipo) : null;
+      const canalBase = canalPing ?? dados.canalId;
+      let canalDestinoId = canalBase;
       try {
-        const topico = await criarTopico(dados.canalId, tituloFinal, 1440);
+        const topico = await criarTopico(canalBase, tituloFinal, 1440);
         canalDestinoId = topico.id;
       } catch (err) {
         console.error("Erro ao criar o tópico do painel:", err);
@@ -198,14 +204,28 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
         components: [
           actionRow(dropdownPublico),
           montarBotoesBonus(),
+          montarSelectRole(),
           actionRow(btnDesistir, btnSalaVoz, btnDisponiveis),
         ],
       });
 
+      // Guarda título + armas/quantidades como ping salvo (data, hora e tipo mudam toda vez).
+      let avisoPing = "";
+      try {
+        await salvarPing(liderId, {
+          slot: dados.slotPing ?? 1,
+          titulo: dados.titulo,
+          funcoes: Object.fromEntries(vagasFiltradas),
+        });
+        avisoPing = `\n📌 Salvo como seu ping ${dados.slotPing ?? 1} — no próximo /conteudo é só escolher.`;
+      } catch (err) {
+        console.error("Erro ao salvar ping:", err);
+      }
+
       await apagarEstadoWizard(liderId);
 
       await editarRespostaOriginal(applicationId, token, {
-        content: "✅ **Sucesso!** O painel do conteúdo foi gerado e enviado no canal público com sucesso.",
+        content: `✅ **Pronto!** PT postada em <#${canalBase}>.${avisoPing}`,
         components: [],
       });
     },

@@ -18,7 +18,9 @@ import {
   InteractionType,
 } from "./discord/types.ts";
 import { HandlerResult } from "./handlers/context.ts";
-import { handleComandoConteudo } from "./handlers/comandoConteudo.ts";
+import { handleBotaoPing, handleComandoConteudo, lerBotaoPing } from "./handlers/comandoConteudo.ts";
+import { handleRoleAlvo, handleRolePainel, lerRoleAlvo } from "./handlers/vagaRole.ts";
+import { ID_ROLE_PAINEL } from "./handlers/ui.ts";
 import { handleTermos } from "./handlers/termos.ts";
 import { handleComandoKillboard } from "./handlers/killboard.ts";
 import { registrarComandos, segredoInterno } from "./handlers/interno.ts";
@@ -27,7 +29,9 @@ import { registrarComandos, segredoInterno } from "./handlers/interno.ts";
 import {
   handleBtnDefinirTitulo,
   handleBtnPasso2,
-  handleConfigSelect,
+  handleBtnRequisitos,
+  handleConfigTipo,
+  handleVoltarPasso1,
   handleModalTitulo,
 } from "./handlers/passo1.ts";
 import {
@@ -155,21 +159,20 @@ async function rotear(interaction: DiscordInteraction): Promise<HandlerResult> {
     if (massa) return handleMassa(interaction, massa.ptMsgId);
     const massaOk = lerMassaOk(customId);
     if (massaOk) return handleEnviarMassa(interaction, massaOk.ptMsgId);
+    if (customId === ID_ROLE_PAINEL) return handleRolePainel(interaction);
+    const roleAlvo = lerRoleAlvo(customId);
+    if (roleAlvo) return handleRoleAlvo(interaction, roleAlvo);
     if (customId.startsWith("bonus_")) {
       return handleBonusToggle(interaction, customId.replace("bonus_", ""));
     }
 
     // --- Passo 1 ---
     if (customId === "btn_definir_titulo") return await handleBtnDefinirTitulo(interaction);
-    if (
-      componentType === ComponentType.StringSelect &&
-      ["config_atividade", "config_cidade", "config_zona"].includes(customId)
-    ) {
-      return await handleConfigSelect(
-        interaction,
-        customId as "config_atividade" | "config_cidade" | "config_zona",
-      );
-    }
+    if (customId === "config_tipo") return handleConfigTipo(interaction);
+    if (customId === "btn_requisitos") return handleBtnRequisitos(interaction);
+    if (customId === "btn_voltar_passo1") return handleVoltarPasso1(interaction);
+    const botaoPing = lerBotaoPing(customId);
+    if (botaoPing) return handleBotaoPing(interaction, botaoPing);
     if (customId === "btn_passo2") return await handleBtnPasso2(interaction);
 
     // --- Passo 2 ---

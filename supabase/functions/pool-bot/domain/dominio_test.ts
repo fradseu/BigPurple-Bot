@@ -102,7 +102,7 @@ Deno.test("wizard: respeita o máximo de atividades e classes e remove repetidos
   e = aplicarSelecao(e, "atividades", Array(10).fill("DG Grupo"));
   assertEquals(e.atividades, ["DG Grupo"]);
   e = aplicarSelecao(e, "areas", ["PVE", "PVP", "FAC", "AVALON"]);
-  e = aplicarSelecao(e, "classes", ["TANK", "DPS", "SUPORTE", "ARCO (QUALQUER)", "NATUREZA (QUALQUER)"]);
+  e = aplicarSelecao(e, "classes", ["MARTELO (QUALQUER)", "MAÇA (QUALQUER)", "SAGRADO (QUALQUER)", "ARCO (QUALQUER)", "NATUREZA (QUALQUER)"]);
   assertEquals(e.classes.length, MAX_CLASSES);
   e = aplicarSelecao(e, "atividades", [
     "DG Grupo", "DG Fixa", "Caçada", "Guerra de Facção", "Roaming/Gank", "Apagas", "Spec de arma",
@@ -124,8 +124,8 @@ Deno.test("lerEstado: JSON corrompido do banco recomeça do zero, sem quebrar", 
   assertEquals(lerEstado(null), estadoInicial());
   assertEquals(lerEstado("lixo"), estadoInicial());
   assertEquals(lerEstado({ atividades: "nao-e-lista", classes: [1, 2], tier: 9, areas: 5 }), estadoInicial());
-  const bom = lerEstado({ areas: ["PVE"], atividades: ["DG Grupo"], classes: ["TANK"], tier: "T7", duracaoMin: 60 });
-  assertEquals(bom, { areas: ["PVE"], atividades: ["DG Grupo"], classes: ["TANK"], tier: "T7", duracaoMin: 60 });
+  const bom = lerEstado({ areas: ["PVE"], atividades: ["DG Grupo"], classes: ["MARTELO (QUALQUER)"], tier: "T7", duracaoMin: 60 });
+  assertEquals(bom, { areas: ["PVE"], atividades: ["DG Grupo"], classes: ["MARTELO (QUALQUER)"], tier: "T7", duracaoMin: 60 });
 });
 
 Deno.test("lerEstado: estado antigo sem áreas (de antes da mudança) continua legível", () => {

@@ -12,7 +12,7 @@ import { ARVORES, classeDaArma, classeGenericaDaArvore, CLASSES_FUNCOES } from "
 
 const SESSAO_EXPIRADA = "⚠️ Sessão expirada — use /conteudo de novo pra começar.";
 
-async function editarComPainelPasso3(
+export async function editarComPainelPasso3(
   applicationId: string,
   token: string,
   guildId: string | undefined,
