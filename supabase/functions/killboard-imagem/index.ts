@@ -35,9 +35,22 @@ Deno.serve(async (req: Request) => {
       if (linha.png_base64) {
         png = Uint8Array.from(atob(linha.png_base64), (c) => c.charCodeAt(0));
       } else {
-        // Primeira vez: desenha e guarda o PNG pronto (as próximas leituras saem na hora).
-        png = await desenharAbate(linha.evento);
-        await db().from("killboard_eventos").update({ png_base64: base64(png) }).eq("event_id", id);
+        // Primeira vez: desenha (até 3 tentativas se algum ícone falhar) e guarda o PNG só se
+        // estiver completo; incompleto, é servido mas desenhado de novo na próxima leitura.
+        let r = await desenharAbate(linha.evento);
+        for (let t = 2; t <= 3 && !r.completo; t++) {
+          await new Promise((ok) => setTimeout(ok, 1_500 * t));
+          r = await desenharAbate(linha.evento);
+        }
+        png = r.png;
+        if (r.completo) {
+          await db().from("killboard_eventos").update({ png_base64: base64(png) }).eq("event_id", id);
+        } else {
+          console.error("killboard-imagem", id, "card incompleto (ícone não carregou)");
+        }
+        if (!r.completo) {
+          return new Response(png as unknown as BodyInit, { headers: { "content-type": "image/png", "cache-control": "no-store" } });
+        }
       }
       if (cache.size > 200) cache.clear();
       cache.set(id, png);
