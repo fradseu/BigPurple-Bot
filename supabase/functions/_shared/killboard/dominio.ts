@@ -133,7 +133,9 @@ export function montarEmbedEvento(evento: EventoAlbion, c: Classificacao): Disco
   const rotulo = c.tipo === "kill" ? "Kill de" : c.tipo === "morte" ? "Morte de" : "Assistência de";
   const participantes = evento.numberOfParticipants ?? evento.Participants?.length ?? 1;
 
-  const arma = (c.tipo === "morte" ? evento.Killer : evento.Victim).Equipment?.MainHand?.Type;
+  // Imagem: arma da vítima (na morte, a do matador). Se não tiver (vítima sem arma), usa a do outro.
+  const [principal, reserva] = c.tipo === "morte" ? [evento.Killer, evento.Victim] : [evento.Victim, evento.Killer];
+  const arma = principal.Equipment?.MainHand?.Type ?? reserva.Equipment?.MainHand?.Type;
 
   return {
     title: titulo,
