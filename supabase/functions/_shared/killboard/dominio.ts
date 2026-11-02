@@ -97,13 +97,13 @@ function nomeComGuilda(j: JogadorEvento): string {
   return `**${j.Name}**${guilda}${ip}`;
 }
 
-// Menções vão no TEXTO da mensagem, não no embed: dentro de embed o Discord só mostra @Nome se o
-// aparelho já tiver a pessoa carregada (offline vira "<@123...>"). No texto ele sempre resolve.
-// O allowed_mentions vazio (discord.ts) garante que ninguém é notificado.
-export function textoMencoes(c: Classificacao, acompanhados: Acompanhados): string {
-  const rotulo = c.tipo === "kill" ? "⚔️ Kill de" : c.tipo === "morte" ? "💀 Morte de" : "🤝 Assistência de";
-  const quem = c.membros.map((id) => acompanhados.get(id)).filter(Boolean).map((d) => `<@${d}>`);
-  return `${rotulo} ${quem.join(", ")}`;
+// Sem menções (@): fora do cache do aparelho o Discord mostra "usuário-desconhecido". Mostramos
+// sempre o nome do jogo, que é igual para todo mundo e não notifica ninguém.
+export function nomesDosMembros(evento: EventoAlbion, c: Classificacao): string[] {
+  const nomes = new Map<string, string>(
+    [evento.Killer, evento.Victim, ...(evento.Participants ?? [])].map((j) => [j.Id, j.Name]),
+  );
+  return c.membros.map((id) => nomes.get(id) ?? id);
 }
 
 export const COR_KILL = 0x2ecc71;
@@ -183,10 +183,13 @@ export interface LinhaRanking {
   tipo: TipoEvento;
   fama: number;
   discordIds: string[];
+  // Nomes no jogo, na mesma ordem de discordIds (vazio em linhas antigas).
+  nomes: string[];
 }
 
 export interface PosicaoRanking {
   discordId: string;
+  nome: string;
   quantidade: number;
   fama: number;
 }
@@ -202,22 +205,18 @@ export interface Ranking {
 export function montarRanking(linhas: LinhaRanking[], tamanho = 10): Ranking {
   const placares = { kills: new Map<string, PosicaoRanking>(), mortes: new Map(), assistencias: new Map() } as
     Record<keyof Ranking, Map<string, PosicaoRanking>>;
-  const somar = (onde: keyof Ranking, discordId: string, fama: number) => {
-    const p = placares[onde].get(discordId) ?? { discordId, quantidade: 0, fama: 0 };
+  const somar = (onde: keyof Ranking, discordId: string, fama: number, nome: string | undefined) => {
+    const p = placares[onde].get(discordId) ?? { discordId, nome: nome ?? "?", quantidade: 0, fama: 0 };
+    if (nome) p.nome = nome;
     p.quantidade++;
     p.fama += fama;
     placares[onde].set(discordId, p);
   };
   for (const l of linhas) {
-    if (l.tipo === "kill") {
-      const [matador, ...ajudaram] = l.discordIds;
-      if (matador) somar("kills", matador, l.fama);
-      for (const d of ajudaram) somar("assistencias", d, l.fama);
-    } else if (l.tipo === "morte") {
-      for (const d of l.discordIds) somar("mortes", d, l.fama);
-    } else {
-      for (const d of l.discordIds) somar("assistencias", d, l.fama);
-    }
+    l.discordIds.forEach((d, i) => {
+      const onde: keyof Ranking = l.tipo === "morte" ? "mortes" : l.tipo === "kill" && i === 0 ? "kills" : "assistencias";
+      somar(onde, d, l.fama, l.nomes[i]);
+    });
   }
   const top = (m: Map<string, PosicaoRanking>) =>
     [...m.values()].sort((a, b) => b.quantidade - a.quantidade || b.fama - a.fama).slice(0, tamanho);
@@ -229,12 +228,11 @@ const MEDALHAS = ["🥇", "🥈", "🥉"];
 function linhasDoTop(posicoes: PosicaoRanking[], rotuloFama: string): string {
   if (posicoes.length === 0) return "_ninguém ainda_";
   return posicoes.map((p, i) =>
-    `${MEDALHAS[i] ?? `\`${i + 1}.\``} <@${p.discordId}> — **${p.quantidade}** · ${formatarFama(p.fama)} ${rotuloFama}`
+    `${MEDALHAS[i] ?? `\`${i + 1}.\``} **${p.nome}** — ${p.quantidade} · ${formatarFama(p.fama)} ${rotuloFama}`
   ).join("\n");
 }
 
-// Ranking em TEXTO (menções só resolvem para quem está offline fora do embed). O embed fica só
-// com o título e o rodapé.
+// Ranking no texto da mensagem (cabe mais que um campo de embed). O embed fica com título e rodapé.
 export function textoRanking(r: Ranking): string {
   return [
     "**⚔️ Top Kills**",

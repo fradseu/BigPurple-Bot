@@ -21,7 +21,7 @@ import {
   montarEmbedEvento,
   montarEmbedRanking,
   montarRanking,
-  textoMencoes,
+  nomesDosMembros,
   textoRanking,
 } from "./dominio.ts";
 
@@ -90,7 +90,7 @@ async function rodarServidor(cfg: ConfigKillboard): Promise<ResultadoKillboard> 
     const c = classificarEvento(evento, acompanhados);
     if (!c) continue;
     if (postados > 0) await new Promise((r) => setTimeout(r, PAUSA_ENTRE_POSTS_MS));
-    const msg = await postarEmbed(cfg.canal_id, montarEmbedEvento(evento, c), textoMencoes(c, acompanhados));
+    const msg = await postarEmbed(cfg.canal_id, montarEmbedEvento(evento, c));
     await registrarPostado(
       cfg.guild_id,
       evento.EventId,
@@ -98,6 +98,7 @@ async function rodarServidor(cfg: ConfigKillboard): Promise<ResultadoKillboard> 
       msg.id,
       evento.TotalVictimKillFame ?? 0,
       c.membros.map((id) => acompanhados.get(id)!),
+      nomesDosMembros(evento, c),
     );
     postados++;
   }

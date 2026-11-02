@@ -10,7 +10,7 @@ import {
   montarEmbedRanking,
   montarRanking,
   podeConfigurar,
-  textoMencoes,
+  nomesDosMembros,
   textoRanking,
 } from "./dominio.ts";
 
@@ -88,7 +88,7 @@ Deno.test("kill: menção no texto da mensagem, nome do jogo no embed, link do e
   const acompanhados = new Map([["K", "111"], ["A", "222"]]);
   const e = evento();
   const c = classificarEvento(e, acompanhados)!;
-  assertEquals(textoMencoes(c, acompanhados), "⚔️ Kill de <@111>, <@222>");
+  assertEquals(nomesDosMembros(e, c), ["Matador", "Ajudante"]);
   const embed = montarEmbedEvento(e, c);
   assertEquals(embed.title, "⚔️ Matador matou Vitima");
   assertEquals(embed.description, "Kill de **Matador**, **Ajudante**");
@@ -102,7 +102,6 @@ Deno.test("embed de morte", () => {
   const acompanhados = new Map([["V", "222"]]);
   const e = evento();
   const c = classificarEvento(e, acompanhados)!;
-  assertEquals(textoMencoes(c, acompanhados), "💀 Morte de <@222>");
   const embed = montarEmbedEvento(e, c);
   assertEquals(embed.title, "💀 Vitima morreu para Matador");
   assertEquals(embed.color, 0xe74c3c);
@@ -125,29 +124,29 @@ Deno.test("permissão: administrador ou gerenciar servidor", () => {
 
 Deno.test("ranking: kill conta pro matador e assistência pros demais; mortes separadas", () => {
   const r = montarRanking([
-    { tipo: "kill", fama: 100, discordIds: ["a", "b"] },
-    { tipo: "kill", fama: 300, discordIds: ["b"] },
-    { tipo: "kill", fama: 50, discordIds: ["a"] },
-    { tipo: "assistencia", fama: 70, discordIds: ["c"] },
-    { tipo: "morte", fama: 900, discordIds: ["a"] },
+    { tipo: "kill", fama: 100, discordIds: ["a", "b"], nomes: ["Ana", "Beto"] },
+    { tipo: "kill", fama: 300, discordIds: ["b"], nomes: ["Beto"] },
+    { tipo: "kill", fama: 50, discordIds: ["a"], nomes: [] },
+    { tipo: "assistencia", fama: 70, discordIds: ["c"], nomes: ["Caio"] },
+    { tipo: "morte", fama: 900, discordIds: ["a"], nomes: ["Ana"] },
   ]);
   assertEquals(r.kills, [
-    { discordId: "b", quantidade: 1, fama: 300 },
-    { discordId: "a", quantidade: 2, fama: 150 },
+    { discordId: "b", nome: "Beto", quantidade: 1, fama: 300 },
+    { discordId: "a", nome: "Ana", quantidade: 2, fama: 150 },
   ].sort((x, y) => y.quantidade - x.quantidade || y.fama - x.fama));
   assertEquals(r.assistencias.map((p) => p.discordId), ["b", "c"]);
-  assertEquals(r.mortes, [{ discordId: "a", quantidade: 1, fama: 900 }]);
+  assertEquals(r.mortes, [{ discordId: "a", nome: "Ana", quantidade: 1, fama: 900 }]);
 });
 
 Deno.test("ranking: limita ao top N e mostra medalhas", () => {
-  const linhas = Array.from({ length: 12 }, (_, i) => ({ tipo: "kill" as const, fama: i, discordIds: [`u${i}`] }));
+  const linhas = Array.from({ length: 12 }, (_, i) => ({ tipo: "kill" as const, fama: i, discordIds: [`u${i}`], nomes: [`Jogador${i}`] }));
   const r = montarRanking(linhas);
   assertEquals(r.kills.length, 10);
   assertEquals(r.kills[0].discordId, "u11");
   const texto = textoRanking(r).split("\n");
   assertEquals(texto[0], "**⚔️ Top Kills**");
-  assertEquals(texto[1], "🥇 <@u11> — **1** · 11 de fama");
-  assertEquals(texto[4], "`4.` <@u8> — **1** · 8 de fama");
+  assertEquals(texto[1], "🥇 **Jogador11** — 1 · 11 de fama");
+  assertEquals(texto[4], "`4.` **Jogador8** — 1 · 8 de fama");
   assertEquals(texto[texto.length - 1], "_ninguém ainda_");
   assertEquals(montarEmbedRanking(30).title, "🏆 Ranking do Killboard — últimos 30 dias");
 });
