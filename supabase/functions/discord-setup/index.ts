@@ -11,6 +11,8 @@
 //   Opcional: "event_ids" (só esses) e "v" (versão da imagem, força o Discord a buscar de novo).
 //   POST /internal/repostar-kills  {"guild_id"} — reposta as kills registradas a partir dos eventos
 //   guardados (killboard_eventos), já com o card pronto. Não depende da API do Albion.
+//   POST /internal/ler-canal  {"canal_id", "limite"?} — dados do canal/tópico e as últimas mensagens
+//   (só leitura), para entender pedidos feitos no servidor.
 // Protegida pelo segredo interno (public.bot_segredos 'interno').
 import { discord, postarEmbed, prepararCard } from "../_shared/killboard/discord.ts";
 import { EventoAlbion, idsPorNome, montarEmbedEvento, TipoEvento, urlCard } from "../_shared/killboard/dominio.ts";
@@ -200,8 +202,40 @@ async function repostarKills(guildId: string) {
   return resultado;
 }
 
+async function lerCanal(canalId: string, limite: number) {
+  const canal = await discord<Record<string, unknown>>(`/channels/${canalId}`);
+  const mensagens = await discord<Array<Record<string, unknown>>>(
+    `/channels/${canalId}/messages?limit=${Math.min(Math.max(limite, 1), 100)}`,
+  );
+  return {
+    canal: { id: canal.id, nome: canal.name, tipo: canal.type, pai: canal.parent_id, topico: canal.topic },
+    mensagens: mensagens.reverse().map((m) => ({
+      autor: (m.author as { username?: string; global_name?: string })?.global_name ??
+        (m.author as { username?: string })?.username,
+      quando: m.timestamp,
+      texto: m.content,
+      anexos: ((m.attachments as Array<{ url: string; filename: string }>) ?? []).map((a) => a.url),
+      embeds: ((m.embeds as Array<{ title?: string; description?: string }>) ?? [])
+        .map((e) => [e.title, e.description].filter(Boolean).join(" — ")),
+    })),
+  };
+}
+
 Deno.serve(async (req: Request) => {
   const caminho = new URL(req.url).pathname;
+  if (req.method === "POST" && caminho.endsWith("/internal/ler-canal")) {
+    const esperado = await segredoInterno();
+    if (!esperado || !segredosIguais(esperado, req.headers.get("x-cron-secret") ?? "")) {
+      return new Response("unauthorized", { status: 401 });
+    }
+    const { canal_id, limite } = await req.json().catch(() => ({})) as { canal_id?: string; limite?: number };
+    if (!canal_id) return json({ erro: "canal_id obrigatório" }, 400);
+    try {
+      return json(await lerCanal(canal_id, limite ?? 30));
+    } catch (err) {
+      return json({ erro: err instanceof Error ? err.message : String(err) }, 500);
+    }
+  }
   if (req.method === "POST" && caminho.endsWith("/internal/repostar-kills")) {
     const esperado = await segredoInterno();
     if (!esperado || !segredosIguais(esperado, req.headers.get("x-cron-secret") ?? "")) {
