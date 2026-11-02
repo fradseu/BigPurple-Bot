@@ -21,6 +21,7 @@ import {
   montarEmbedEvento,
   montarEmbedRanking,
   montarRanking,
+  textoMencoes,
 } from "./dominio.ts";
 
 // Teto por execução (o agendador roda a cada 5 min; o que sobrar sai na próxima).
@@ -88,7 +89,7 @@ async function rodarServidor(cfg: ConfigKillboard): Promise<ResultadoKillboard> 
     const c = classificarEvento(evento, acompanhados);
     if (!c) continue;
     if (postados > 0) await new Promise((r) => setTimeout(r, PAUSA_ENTRE_POSTS_MS));
-    const msg = await postarEmbed(cfg.canal_id, montarEmbedEvento(evento, c, acompanhados));
+    const msg = await postarEmbed(cfg.canal_id, montarEmbedEvento(evento, c), textoMencoes(c, acompanhados));
     await registrarPostado(
       cfg.guild_id,
       evento.EventId,

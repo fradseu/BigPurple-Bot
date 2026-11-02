@@ -15,11 +15,12 @@ export async function discord<T>(caminho: string, init: RequestInit = {}): Promi
   return (res.status === 204 ? null : await res.json()) as T;
 }
 
-export function postarEmbed(canalId: string, embed: DiscordEmbed): Promise<{ id: string }> {
+// `texto` (opcional) vai acima do embed. allowed_mentions vazio: as menções aparecem como @Nome,
+// mas ninguém recebe notificação.
+export function postarEmbed(canalId: string, embed: DiscordEmbed, texto?: string): Promise<{ id: string }> {
   return discord(`/channels/${canalId}/messages`, {
     method: "POST",
-    // Menções em embed não notificam; allowed_mentions vazio garante isso também no futuro.
-    body: JSON.stringify({ embeds: [embed], allowed_mentions: { parse: [] } }),
+    body: JSON.stringify({ content: texto, embeds: [embed], allowed_mentions: { parse: [] } }),
   });
 }
 

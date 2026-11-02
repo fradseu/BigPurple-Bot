@@ -10,6 +10,7 @@ import {
   montarEmbedRanking,
   montarRanking,
   podeConfigurar,
+  textoMencoes,
 } from "./dominio.ts";
 
 function evento(over: Partial<EventoAlbion> = {}): EventoAlbion {
@@ -82,12 +83,14 @@ Deno.test("fama formatada", () => {
   assertEquals(formatarFama(undefined), "0");
 });
 
-Deno.test("embed de kill menciona o membro no Discord e linka o evento", () => {
-  const acompanhados = new Map([["K", "111"]]);
+Deno.test("kill: menção no texto da mensagem, nome do jogo no embed, link do evento", () => {
+  const acompanhados = new Map([["K", "111"], ["A", "222"]]);
   const e = evento();
-  const embed = montarEmbedEvento(e, classificarEvento(e, acompanhados)!, acompanhados);
+  const c = classificarEvento(e, acompanhados)!;
+  assertEquals(textoMencoes(c, acompanhados), "⚔️ Kill de <@111>, <@222>");
+  const embed = montarEmbedEvento(e, c);
   assertEquals(embed.title, "⚔️ Matador matou Vitima");
-  assertEquals(embed.description, "Kill de <@111>");
+  assertEquals(embed.description, "Kill de **Matador**, **Ajudante**");
   assertEquals(embed.url, "https://albiononline.com/killboard/kill/1");
   assertEquals(embed.color, 0x2ecc71);
   assertEquals(embed.fields?.[0].value, "**Matador** [Big Purple] · IP 1310");
@@ -97,7 +100,9 @@ Deno.test("embed de kill menciona o membro no Discord e linka o evento", () => {
 Deno.test("embed de morte", () => {
   const acompanhados = new Map([["V", "222"]]);
   const e = evento();
-  const embed = montarEmbedEvento(e, classificarEvento(e, acompanhados)!, acompanhados);
+  const c = classificarEvento(e, acompanhados)!;
+  assertEquals(textoMencoes(c, acompanhados), "💀 Morte de <@222>");
+  const embed = montarEmbedEvento(e, c);
   assertEquals(embed.title, "💀 Vitima morreu para Matador");
   assertEquals(embed.color, 0xe74c3c);
 });

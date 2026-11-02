@@ -97,9 +97,13 @@ function nomeComGuilda(j: JogadorEvento): string {
   return `**${j.Name}**${guilda}${ip}`;
 }
 
-function mencao(playerId: string, nome: string, acompanhados: Acompanhados): string {
-  const discord = acompanhados.get(playerId);
-  return discord ? `<@${discord}>` : `**${nome}**`;
+// Menções vão no TEXTO da mensagem, não no embed: dentro de embed o Discord só mostra @Nome se o
+// aparelho já tiver a pessoa carregada (offline vira "<@123...>"). No texto ele sempre resolve.
+// O allowed_mentions vazio (discord.ts) garante que ninguém é notificado.
+export function textoMencoes(c: Classificacao, acompanhados: Acompanhados): string {
+  const rotulo = c.tipo === "kill" ? "⚔️ Kill de" : c.tipo === "morte" ? "💀 Morte de" : "🤝 Assistência de";
+  const quem = c.membros.map((id) => acompanhados.get(id)).filter(Boolean).map((d) => `<@${d}>`);
+  return `${rotulo} ${quem.join(", ")}`;
 }
 
 export const COR_KILL = 0x2ecc71;
@@ -114,15 +118,11 @@ export function urlItem(tipo: string): string {
   return `https://render.albiononline.com/v1/item/${encodeURIComponent(tipo)}.png`;
 }
 
-export function montarEmbedEvento(
-  evento: EventoAlbion,
-  c: Classificacao,
-  acompanhados: Acompanhados,
-): DiscordEmbed {
+export function montarEmbedEvento(evento: EventoAlbion, c: Classificacao): DiscordEmbed {
   const nomes = new Map<string, string>(
     [evento.Killer, evento.Victim, ...(evento.Participants ?? [])].map((j) => [j.Id, j.Name]),
   );
-  const quem = c.membros.map((id) => mencao(id, nomes.get(id) ?? id, acompanhados)).join(", ");
+  const quem = c.membros.map((id) => `**${nomes.get(id) ?? id}**`).join(", ");
 
   const titulo = c.tipo === "kill"
     ? `⚔️ ${evento.Killer.Name} matou ${evento.Victim.Name}`
