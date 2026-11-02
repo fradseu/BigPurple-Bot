@@ -33,6 +33,7 @@ async function discordFetch(path: string, init: RequestInit = {}): Promise<Respo
 
 export interface EditarMensagemPayload {
   content?: string;
+  allowed_mentions?: { parse: string[] };
   components?: ActionRowComponent[];
   embeds?: DiscordEmbed[];
 }
@@ -166,6 +167,7 @@ export async function enviarFollowUp(
 export interface MembroDiscord {
   user: { id: string; username: string; global_name?: string | null };
   nick?: string | null;
+  roles?: string[];
 }
 
 // Busca o apelido/nome real do jogador no servidor (equivalente a

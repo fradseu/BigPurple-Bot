@@ -20,6 +20,8 @@ import {
 import { HandlerResult } from "./handlers/context.ts";
 import { handleComandoConteudo } from "./handlers/comandoConteudo.ts";
 import { handleTermos } from "./handlers/termos.ts";
+import { handleComandoKillboard } from "./handlers/killboard.ts";
+import { registrarComandos, segredoInterno } from "./handlers/interno.ts";
 // /diagnostico desativado por enquanto (deixa comentado, não apagado).
 // import { handleDiagnostico } from "./handlers/diagnostico.ts";
 import {
@@ -99,6 +101,8 @@ async function rotear(interaction: DiscordInteraction): Promise<HandlerResult> {
         return await handleComandoConteudo(interaction);
       case "termos":
         return handleTermos();
+      case "killboard":
+        return handleComandoKillboard(interaction);
       // case "diagnostico":
       //   return await handleDiagnostico(interaction);
       default:
@@ -224,6 +228,20 @@ Deno.serve(async (req: Request) => {
     } catch (err) {
       console.error("Erro ao preencher vaga a pedido do pool:", err);
       return jsonResponse({ ok: false, motivo: "erro" }, 500);
+    }
+  }
+
+  // Rota INTERNA de manutenção: registra os slash commands (inclusive /killboard) sem computador.
+  // Protegida pelo segredo interno (KILLBOARD_CRON_SECRET ou public.bot_segredos 'interno').
+  if (new URL(req.url).pathname.endsWith("/internal/registrar-comandos")) {
+    const esperado = await segredoInterno();
+    if (!esperado || !segredosIguais(esperado, req.headers.get("x-cron-secret") ?? "")) {
+      return new Response("unauthorized", { status: 401 });
+    }
+    try {
+      return jsonResponse(await registrarComandos());
+    } catch (err) {
+      return jsonResponse({ erro: err instanceof Error ? err.message : String(err) }, 500);
     }
   }
 
