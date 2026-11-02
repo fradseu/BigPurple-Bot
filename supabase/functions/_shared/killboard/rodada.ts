@@ -6,6 +6,7 @@ import {
   cargoMembroDoRecrutamento,
   ConfigKillboard,
   eventosJaPostados,
+  guardarEvento,
   guildaAlbion,
   lerConfigsAtivas,
   postadosRecentes,
@@ -90,6 +91,7 @@ async function rodarServidor(cfg: ConfigKillboard): Promise<ResultadoKillboard> 
     const c = classificarEvento(evento, acompanhados);
     if (!c) continue;
     if (postados > 0) await new Promise((r) => setTimeout(r, PAUSA_ENTRE_POSTS_MS));
+    await guardarEvento(evento);
     const msg = await postarEmbed(cfg.canal_id, montarEmbedEvento(evento, c));
     await registrarPostado(
       cfg.guild_id,

@@ -180,6 +180,13 @@ select net.http_post(
 );
 ```
 
+### Card "Detalhes do abate"
+
+Cada kill sai com uma imagem no estilo do registro do jogo: matador e vítima com o equipamento
+completo (grade 3x3 + montaria), IP, guilda, data e fama. Desenhada pela function pública
+`killboard-imagem` (`/killboard-imagem/<eventId>.png`) a partir de `killboard_eventos`; os ícones
+vêm do render oficial do Albion e ficam em cache em `killboard_icones`.
+
 ## Plano completo
 
 O plano de arquitetura e decisões tomadas está registrado em

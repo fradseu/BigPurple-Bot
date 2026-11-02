@@ -137,9 +137,14 @@ async function reescreverKills(guildId: string) {
       const msg = await discord<{ embeds: Array<Record<string, unknown>> }>(
         `/channels/${cfg.canal_id}/messages/${p.mensagem_id}`,
       );
-      const embed = { ...msg.embeds[0], description: `${rotulos[p.tipo]} ${p.nomes.map((n) => `**${n}**`).join(", ")}` };
-      // Campos que o Discord devolve mas não aceita de volta.
-      for (const k of ["type", "content_scan_version"]) delete (embed as Record<string, unknown>)[k];
+      const embed: Record<string, unknown> = {
+        ...msg.embeds[0],
+        description: `${rotulos[p.tipo]} ${p.nomes.map((n) => `**${n}**`).join(", ")}`,
+        image: { url: `https://qroosefyfxefjrlhogrh.supabase.co/functions/v1/killboard-imagem/${p.event_id}.png` },
+      };
+      // Layout atual: o card de imagem substitui os campos e a miniatura. Também saem os campos
+      // que o Discord devolve mas não aceita de volta.
+      for (const k of ["type", "content_scan_version", "fields", "thumbnail"]) delete embed[k];
       await discord(`/channels/${cfg.canal_id}/messages/${p.mensagem_id}`, {
         method: "PATCH",
         body: JSON.stringify({ content: "", embeds: [embed], allowed_mentions: { parse: [] } }),
