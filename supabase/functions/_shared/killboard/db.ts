@@ -117,9 +117,10 @@ export async function registrarPostado(
   mensagemId: string | null,
   fama: number,
   discordIds: string[],
+  nomes: string[],
 ): Promise<void> {
   const { error } = await db().from("killboard_postados").upsert(
-    { guild_id: guildId, event_id: eventId, tipo, mensagem_id: mensagemId, fama, discord_ids: discordIds },
+    { guild_id: guildId, event_id: eventId, tipo, mensagem_id: mensagemId, fama, discord_ids: discordIds, nomes },
     { onConflict: "guild_id,event_id", ignoreDuplicates: true },
   );
   if (error) throw new Error(`Erro ao gravar killboard_postados: ${error.message}`);
@@ -128,9 +129,9 @@ export async function registrarPostado(
 // Eventos postados nos últimos `dias` (base do ranking).
 export async function postadosRecentes(guildId: string, dias: number): Promise<LinhaRanking[]> {
   const desde = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await db().from("killboard_postados").select("tipo, fama, discord_ids")
+  const { data, error } = await db().from("killboard_postados").select("tipo, fama, discord_ids, nomes")
     .eq("guild_id", guildId).gte("postado_em", desde);
   if (error) throw new Error(`Erro ao ler killboard_postados: ${error.message}`);
-  return ((data ?? []) as Array<{ tipo: TipoEvento; fama: number; discord_ids: string[] }>)
-    .map((l) => ({ tipo: l.tipo, fama: Number(l.fama), discordIds: l.discord_ids ?? [] }));
+  return ((data ?? []) as Array<{ tipo: TipoEvento; fama: number; discord_ids: string[]; nomes: string[] }>)
+    .map((l) => ({ tipo: l.tipo, fama: Number(l.fama), discordIds: l.discord_ids ?? [], nomes: l.nomes ?? [] }));
 }
