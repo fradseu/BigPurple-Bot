@@ -1,7 +1,7 @@
 // rodada.ts - O trabalho agendado do killboard (chamado pela function `killboard` via pg_cron):
 //   rodarKillboard()   — a cada 5 min: posta kills, mortes e assistências novas dos Membros.
 //   postarRankings()   — toda segunda: posta o top 10 dos últimos 30 dias em cada canal ativo.
-import { buscarEventosDaGuilda } from "./albion.ts";
+import { buscarEventosDaGuilda, buscarMortesDosJogadores } from "./albion.ts";
 
 // Até 6 páginas (306 eventos) para recuperar horas de API fora do ar.
 const PAGINAS_MAXIMAS = 6;
@@ -20,6 +20,7 @@ import { cargosDoMembro, discord, membroPeloNome, postarEmbed, prepararCard } fr
 import {
   Acompanhados,
   classificarEvento,
+  EventoAlbion,
   eventosParaPostar,
   jogadoresDoEvento,
   montarEmbedEvento,
@@ -42,6 +43,8 @@ export const DIAS_RANKING = 30;
 export interface ResultadoKillboard {
   guild_id: string;
   eventos_lidos?: number;
+  mortes_lidas?: number;
+  falhas_mortes?: number;
   postados?: number;
   erro?: string;
 }
@@ -58,10 +61,15 @@ async function rodarServidor(cfg: ConfigKillboard): Promise<ResultadoKillboard> 
 
   const desde = new Date(Math.max(new Date(cfg.ativado_em).getTime(), Date.now() - JANELA_MAXIMA_MS));
   // Continua lendo páginas enquanto nenhuma delas tiver evento já postado nem passar de `desde`.
-  const eventos = await buscarEventosDaGuilda(guilda.id, PAGINAS_MAXIMAS, async (pagina) => {
+  const kills = await buscarEventosDaGuilda(guilda.id, PAGINAS_MAXIMAS, async (pagina) => {
     if (pagina.some((e) => new Date(e.TimeStamp) < desde)) return true;
     return (await eventosJaPostados(cfg.guild_id, pagina.map((e) => e.EventId))).size > 0;
   });
+  // Mortes: o feed da guilda não traz; vêm do perfil de cada membro vinculado.
+  const mortes = await buscarMortesDosJogadores([...vinculos.keys()]);
+  const porId = new Map<number, EventoAlbion>();
+  for (const e of [...kills, ...mortes.eventos]) porId.set(e.EventId, e);
+  const eventos = [...porId.values()];
   const jaPostados = await eventosJaPostados(cfg.guild_id, eventos.map((e) => e.EventId));
   const candidatos = eventosParaPostar(eventos, jaPostados, desde, eventos.length);
 
@@ -114,7 +122,7 @@ async function rodarServidor(cfg: ConfigKillboard): Promise<ResultadoKillboard> 
     postados++;
   }
 
-  return { guild_id: cfg.guild_id, eventos_lidos: eventos.length, postados };
+  return { guild_id: cfg.guild_id, eventos_lidos: eventos.length, mortes_lidas: mortes.eventos.length, falhas_mortes: mortes.falhas, postados };
 }
 
 export async function rodarKillboard(): Promise<ResultadoKillboard[]> {
