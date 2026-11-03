@@ -8,22 +8,22 @@ const TENTATIVAS = 3;
 // A API aceita no máximo 51 por página.
 const POR_PAGINA = 51;
 
-async function buscarJson<T>(caminho: string): Promise<T> {
+async function buscarJson<T>(caminho: string, tentativas = TENTATIVAS, tempoMs = TEMPO_LIMITE_MS): Promise<T> {
   let ultimoErro: unknown;
-  for (let tentativa = 1; tentativa <= TENTATIVAS; tentativa++) {
+  for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
     try {
       const res = await fetch(`${BASE}${caminho}`, {
         headers: { "user-agent": "BigPurple-Bot/1.0" },
-        signal: AbortSignal.timeout(TEMPO_LIMITE_MS),
+        signal: AbortSignal.timeout(tempoMs),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json() as T;
     } catch (err) {
       ultimoErro = err;
-      if (tentativa < TENTATIVAS) await new Promise((r) => setTimeout(r, 2_000 * tentativa));
+      if (tentativa < tentativas) await new Promise((r) => setTimeout(r, 2_000 * tentativa));
     }
   }
-  throw new Error(`Albion ${caminho} falhou depois de ${TENTATIVAS} tentativas: ${ultimoErro}`);
+  throw new Error(`Albion ${caminho} falhou depois de ${tentativas} tentativas: ${ultimoErro}`);
 }
 
 // Eventos em que alguém da guilda matou ou morreu, do mais recente pro mais antigo.
@@ -51,4 +51,25 @@ export async function buscarEventosDaGuilda(
     if (pagina.length < POR_PAGINA || (await chegou(pagina))) break;
   }
   return todos;
+}
+
+// O feed da guilda (/events?guildId) só traz as KILLS da guilda; as mortes dos membros vêm do
+// perfil de cada um (/players/{id}/deaths). Lê 4 por vez; quem falhar fica pra próxima rodada.
+export async function buscarMortesDosJogadores(
+  playerIds: string[],
+): Promise<{ eventos: EventoAlbion[]; falhas: number }> {
+  const eventos: EventoAlbion[] = [];
+  let falhas = 0;
+  for (let i = 0; i < playerIds.length; i += 4) {
+    const lote = await Promise.allSettled(
+      playerIds.slice(i, i + 4).map((id) =>
+        buscarJson<EventoAlbion[]>(`/players/${encodeURIComponent(id)}/deaths`, 2, 12_000)
+      ),
+    );
+    for (const r of lote) {
+      if (r.status === "fulfilled") eventos.push(...r.value);
+      else falhas++;
+    }
+  }
+  return { eventos, falhas };
 }
